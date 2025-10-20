@@ -1,0 +1,28 @@
+{
+  "name": "@ibm-cloud/continuous-delivery",
+  "version": "0.0.0-semantically-released",
+  "description": "Tools and utilities for the IBM Cloud Continuous Delivery service and resources",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IBM/continuous-delivery-tools"
+  },
+  "keywords": [
+    "ibm"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "IBM Corp.",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@cdktf/hcl2json": "^0.21.0",
+    "axios": "^1.12.2",
+    "axios-retry": "^4.5.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.1",
+    "json-to-tf": "^0.3.1",
+    "ora": "^9.0.0",
+    "strip-ansi": "^7.1.2"
+  },
+  "type": "module"
+}
