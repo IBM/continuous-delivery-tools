@@ -24,5 +24,6 @@
     "ora": "^9.0.0",
     "strip-ansi": "^7.1.2"
   },
+  "bin": "./index.js",
   "type": "module"
 }
