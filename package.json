@@ -1,5 +1,5 @@
 {
-  "name": "@ibm-cloud/continuous-delivery",
+  "name": "@ibm-cloud/cd-tools",
   "version": "0.0.0-semantically-released",
   "description": "Tools and utilities for the IBM Cloud Continuous Delivery service and resources",
   "repository": {
@@ -24,5 +24,6 @@
     "ora": "^9.0.0",
     "strip-ansi": "^7.1.2"
   },
+  "bin": "./index.js",
   "type": "module"
 }
