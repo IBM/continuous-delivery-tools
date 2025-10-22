@@ -26,6 +26,7 @@ Provides tools to work with IBM Cloud Continuous Delivery resources, including *
 - An **IBM Cloud API key** with the following IAM access permissions:
   - **Viewer** for the source Toolchain(s) being copied
   - **Editor** for create new Toolchains in the target region
+  - **Administrator** for other IBM Cloud service instances that have a tool integration with IAM service-to-service authorizations, such as Secrets Manager, Event Notifications, etc.
 - For Git Repos and Issue Tracking projects, Personal Access Tokens (PAT) for the source and destination regions are required, with the `api` scope.
 
 ## Install
@@ -59,8 +60,8 @@ Options:
   -h, --help                    display help for command
 
 Commands:
+  copy-project-group [options]  Bulk migrate GitLab group projects
   check-secrets [options]       Checks if you have any stored secrets in your toolchain or pipelines
   copy-toolchain [options]      Copies a toolchain, including tool integrations and Tekton pipelines, to another region or resource group.
-  copy-project-group [options]  Bulk migrate GitLab group projects
   help [command]                display help for command
 ```
