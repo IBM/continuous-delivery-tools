@@ -4,7 +4,7 @@
   "description": "Tools and utilities for the IBM Cloud Continuous Delivery service and resources",
   "repository": {
     "type": "git",
-    "url": "https://github.com/IBM/continuous-delivery-tools"
+    "url": "git+https://github.com/IBM/continuous-delivery-tools.git"
   },
   "keywords": [
     "ibm"
