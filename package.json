@@ -4,7 +4,7 @@
   "description": "Tools and utilities for the IBM Cloud Continuous Delivery service and resources",
   "repository": {
     "type": "git",
-    "url": "https://github.com/IBM/continuous-delivery-tools"
+    "url": "git+https://github.com/IBM/continuous-delivery-tools.git"
   },
   "keywords": [
     "ibm"
@@ -24,6 +24,8 @@
     "ora": "^9.0.0",
     "strip-ansi": "^7.1.2"
   },
-  "bin": "./index.js",
+  "bin": {
+    "cd-tools": "index.js"
+  },
   "type": "module"
 }
