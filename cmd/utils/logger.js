@@ -84,9 +84,10 @@ class Logger {
 
     close() {
         return new Promise((resolve, reject) => {
-            this.logStream?.on('finish', resolve);
-            this.logStream?.on('error', reject);
-            this.logStream?.end();
+            if (!this.logStream) resolve();
+            this.logStream.on('finish', resolve);
+            this.logStream.on('error', reject);
+            this.logStream.end();
         });
     }
 
