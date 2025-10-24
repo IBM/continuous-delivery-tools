@@ -27,7 +27,9 @@
     "ora": "^9.0.0",
     "strip-ansi": "^7.1.2"
   },
-  "bin": "./index.js",
+  "bin": {
+    "cd-tools": "index.js"
+  },
   "type": "module",
   "devDependencies": {
     "chai": "^6.2.0",
