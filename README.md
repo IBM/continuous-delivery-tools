@@ -65,3 +65,6 @@ Commands:
   copy-toolchain [options]      Copies a toolchain, including tool integrations and Tekton pipelines, to another region or resource group.
   help [command]                display help for command
 ```
+
+## Test
+All test setup and usage instructions are documented in [test/README.md](./test/README.md).
