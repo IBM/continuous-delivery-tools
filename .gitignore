@@ -4,4 +4,5 @@ output-*
 .logs
 .npmrc
 test/.tmp
+test/.logs
 test/config/local.json

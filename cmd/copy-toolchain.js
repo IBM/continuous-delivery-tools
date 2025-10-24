@@ -27,7 +27,8 @@ process.on('exit', (code) => {
 
 const LOGS_DIR = '.logs';
 const TEMP_DIR = '.migration-temp'
-const DEBUG_MODE = false; // when true, temp folder is preserved
+const LOG_DUMP = process.env['LOG_DUMP'] === 'false' ? false : true;	// when true or not specified, logs are also written to a log file in LOGS_DIR
+const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true' ? true : false; // when true, temp folder is preserved
 const OUTPUT_DIR = 'output-' + new Date().getTime();
 const DRY_RUN = false; // when true, terraform apply does not run
 
@@ -74,7 +75,7 @@ async function main(options) {
 	const verbosity = options.silent ? 0 : options.verbose ? 2 : 1;
 
 	logger.setVerbosity(verbosity);
-	logger.createLogStream(`${LOGS_DIR}/copy-toolchain-${new Date().getTime()}.log`);
+	if (LOG_DUMP) logger.createLogStream(`${LOGS_DIR}/copy-toolchain-${new Date().getTime()}.log`);
 	logger.dump(`Options: ${JSON.stringify(options)}\n`);
 
 	let bearer;

@@ -342,6 +342,28 @@ async function getGritGroupProject(privToken, region, groupId, projectName) {
     }
 }
 
+async function deleteToolchain(bearer, toolchainId, region) {
+    const apiBaseUrl = `https://api.${region}.devops.cloud.ibm.com/toolchain/v2`;
+    const options = {
+        method: 'DELETE',
+        url: `${apiBaseUrl}/toolchains/${toolchainId}`,
+        headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${bearer}`,
+            'Content-Type': 'application/json',
+        },
+        validateStatus: () => true
+    };
+    const response = await axios(options);
+    switch (response.status) {
+        case 200:
+            return toolchainId;
+        default:
+            throw Error(response.statusText);
+    }
+}
+
+
 export {
     getBearerToken,
     getAccountId,
@@ -355,5 +377,6 @@ export {
     getGitOAuth,
     getGritUserProject,
     getGritGroup,
-    getGritGroupProject
+    getGritGroupProject,
+    deleteToolchain
 }

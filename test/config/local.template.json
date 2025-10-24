@@ -1,5 +1,7 @@
 {
-    "DEBUG_MODE": false,
-    "TEMP_DIR": "test/.tmp",
-    "IBMCLOUD_API_KEY": "<YOUR IBMCLOUD API KEY>"
+    "TEST_DEBUG_MODE": false,
+    "TEST_TEMP_DIR": "test/.tmp",
+    "TEST_LOG_DIR": "test/.logs",
+    "IBMCLOUD_API_KEY": "<YOUR IBMCLOUD API KEY>",
+    "LOG_DUMP": true
 }
