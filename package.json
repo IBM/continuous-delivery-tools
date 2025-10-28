@@ -15,7 +15,7 @@
   "author": "IBM Corp.",
   "license": "Apache-2.0",
   "scripts": {
-    "test": "mocha \"test/copy-toolchain/*.test.js\""
+    "test": "mocha --require \"test/setup.js\" \"test/copy-toolchain/*.test.js\""
   },
   "dependencies": {
     "@cdktf/hcl2json": "^0.21.0",
@@ -33,7 +33,6 @@
   "type": "module",
   "devDependencies": {
     "chai": "^6.2.0",
-    "chai-as-promised": "^8.0.2",
     "mocha": "^11.7.4",
     "nconf": "^0.13.0",
     "node-pty": "^1.0.0"
