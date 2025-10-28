@@ -14,6 +14,8 @@ import stripAnsi from 'strip-ansi';
 
 import fs from 'node:fs';
 
+const DISABLE_SPINNER = process.env.DISABLE_SPINNER === 'true';
+
 const COLORS = {
     reset: '\x1b[0m',
     gray: '\x1b[90m',
@@ -92,7 +94,7 @@ class Logger {
     }
 
     startSpinner(msg, prefix = '') {
-        if (this.verbosity < 1) return;
+        if (this.verbosity < 1 || DISABLE_SPINNER) return;
         this.spinner = ora({
             prefixText: this.#getFullPrefix(prefix),
             text: msg
@@ -104,7 +106,7 @@ class Logger {
     resetSpinner() { if (this.verbosity >= 1) this.spinner = null; }
 
     async withSpinner(asyncFn, loadingMsg, successMsg, prefix, ...args) {
-        if (this.verbosity < 1) {
+        if (this.verbosity < 1 || DISABLE_SPINNER) {
             try {
                 return await asyncFn(...args);
             }

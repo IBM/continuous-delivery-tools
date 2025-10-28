@@ -16,7 +16,8 @@ import { logger } from '../cmd/utils/logger.js';
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');
 process.env.IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
-process.env.LOG_DUMP = nconf.get('LOG_DUMP') || false;
+process.env.DISABLE_SPINNER = nconf.get('DISABLE_SPINNER');
+process.env.LOG_DUMP = nconf.get('LOG_DUMP') || false;      // Disable each individual test case's process's log file generation by default
 
 const TEMP_DIR = resolve(nconf.get('TEST_TEMP_DIR'));
 const LOG_DIR = resolve(nconf.get('TEST_LOG_DIR'));
