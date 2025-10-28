@@ -1,9 +1,18 @@
+/**
+ * Licensed Materials - Property of IBM
+ * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ *
+ * Note to U.S. Government Users Restricted Rights:
+ * Use, duplication or disclosure restricted by GSA ADP Schedule
+ * Contract with IBM Corp.
+ */
+
 import { promisify } from 'util';
 import child_process from 'child_process';
 import stripAnsi from 'strip-ansi';
 import pty from 'node-pty';
-import fs from 'node:fs';
 import nconf from 'nconf';
+import { expect } from 'chai';
 
 import { getBearerToken, deleteToolchain } from '../../cmd/utils/requests.js';
 import { logger } from '../../cmd/utils/logger.js';
@@ -11,8 +20,6 @@ import { logger } from '../../cmd/utils/logger.js';
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');
 
-const TEMP_DIR = nconf.get('TEST_TEMP_DIR');
-const DEBUG_MODE = nconf.get('TEST_DEBUG_MODE');
 const IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
 
 function cleanOutput(data) {
@@ -99,19 +106,27 @@ export function runPtyProcess(fullCommand, options) {
     });
 }
 
-export function testSetup() {
-    if (DEBUG_MODE === true && nconf.get('TEST_LOG_DIR')) {
-        logger.createLogStream(`${nconf.get('TEST_LOG_DIR')}/copy-toolchain-test-${new Date().getTime()}.log`);
-    }
-    if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
-}
-
-export async function testCleanup(toolchainsToDelete) {
-    if (fs.existsSync(TEMP_DIR) && DEBUG_MODE === false) fs.rmSync(TEMP_DIR, { recursive: true });
-    if (typeof toolchainsToDelete === 'object' && toolchainsToDelete.size) {
+export async function testSuiteCleanup(toolchainsToDelete) {
+    if (toolchainsToDelete && typeof toolchainsToDelete === 'object' && toolchainsToDelete.size > 0) {
         const token = await getBearerToken(IBMCLOUD_API_KEY);
         const deletePromises = [...toolchainsToDelete.entries()].map(([id, region]) => deleteToolchain(token, id, region));
         await Promise.all(deletePromises);
     }
-    await logger.close();
+}
+
+export async function expectExecError(fullCommand, expectedMessage, options) {
+    try {
+        const output = await execCommand(fullCommand, options);
+        logger.dump(output);
+        throw new Error('Expected command to fail but it succeeded');
+    } catch (e) {
+        logger.dump(e.message);
+        expect(e.message).to.match(expectedMessage);
+    }
+}
+
+export async function expectPtyOutputToMatch(fullCommand, expectedMessage, options) {
+    const output = await runPtyProcess(fullCommand, options);
+    logger.dump(output);
+    expect(output).to.match(expectedMessage);
 }

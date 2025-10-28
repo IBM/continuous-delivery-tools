@@ -1,104 +1,126 @@
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+/**
+ * Licensed Materials - Property of IBM
+ * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ *
+ * Note to U.S. Government Users Restricted Rights:
+ * Use, duplication or disclosure restricted by GSA ADP Schedule
+ * Contract with IBM Corp.
+ */
+
+import path from 'node:path';
 import nconf from 'nconf';
 
 import * as chai from 'chai';
-import chaiAsPromised from 'chai-as-promised';
-
-chai.use(chaiAsPromised);
 chai.config.truncateThreshold = 0;
-const { expect, assert } = chai;
 
 import mocks from '../data/mocks.js';
-import { execCommand, runPtyProcess, testSetup, testCleanup } from '../utils/testUtils.js';
+import { testSuiteCleanup, expectExecError, expectPtyOutputToMatch } from '../utils/testUtils.js';
 import { TEST_TOOLCHAINS } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
-import { logger } from '../../cmd/utils/logger.js';
 
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');
-process.env.IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
-process.env.LOG_DUMP = nconf.get('LOG_DUMP');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const CLI_PATH = join(__dirname, '../../index.js');
+const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
 
 const toolchainsToDelete = new Map();
 
-before(() => testSetup());
-after(async () => await testCleanup(toolchainsToDelete));
+after(async () => await testSuiteCleanup(toolchainsToDelete));
 
-describe('Test copy-toolchain command user input handling', function () {
+describe('copy-toolchain: Test user input handling', function () {
     this.timeout('60s');
+    this.command = 'copy-toolchain';
 
-    it('Invalid arguments handling', async () => {
+    const validCrn = TEST_TOOLCHAINS['empty'].crn;
 
-        const validCrn = TEST_TOOLCHAINS['empty'].crn;
-        const invalidRegionPattern = new RegExp(`option '-r, --region <region>' argument '${mocks.invalidRegion}' is invalid`);
+    const invalidArgsCases = [
+        {
+            name: 'Toolchain CRN not specified',
+            cmd: [CLI_PATH, COMMAND],
+            expected: /required option '-c, --toolchain-crn <crn>' not specified/,
+        },
+        {
+            name: 'Region is not specified',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn],
+            expected: /required option '-r, --region <region>' not specified/,
+        },
+        {
+            name: 'API Key is not specified',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0]],
+            expected: /Environment variable 'IBMCLOUD_API_KEY' is required but not set/,
+            options: { env: { ...process.env, IBMCLOUD_API_KEY: '' } }
+        },
+        {
+            name: 'Invalid API Key provided',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0]],
+            expected: /There was a problem getting a bearer token using IBMCLOUD_API_KEY/,
+            options: { env: { ...process.env, IBMCLOUD_API_KEY: 'not-a-valid-apikey' } }
+        },
+        {
+            name: 'Invalid region is provided',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', mocks.invalidRegion],
+            expected: new RegExp(`option '-r, --region <region>' argument '${mocks.invalidRegion}' is invalid`)
+        },
+        {
+            name: 'Invalid CRN is provided',
+            cmd: [CLI_PATH, COMMAND, '-c', mocks.invalidCrn, '-r', TARGET_REGIONS[0]],
+            expected: /Provided toolchain CRN is invalid/,
+        },
+        {
+            name: 'Invalid Toolchain tag is provided',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-t', mocks.invalidTag],
+            expected: /Provided tag is invalid/,
+        },
+        {
+            name: 'Invalid Toolchain name is provided',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-n', mocks.invalidTcName],
+            expected: /Provided toolchain name is invalid/,
+        },
+        {
+            name: 'Invalid Resource Group name is provided',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-g', mocks.invalidRgName],
+            expected: /The resource group with provided ID or name was not found or is not accessible/,
+        },
+        {
+            name: 'Invalid Resource Group ID is provided',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-g', mocks.invalidRgId],
+            expected: /The resource group with provided ID or name was not found or is not accessible/,
+        },
+    ];
 
-        const tests = [
-            // Toolchain CRN not specified
-            expect(execCommand([CLI_PATH, COMMAND])).to.be.rejectedWith(/required option \'-c, --toolchain-crn <crn>\' not specified/),
-
-            // Region is not specified
-            expect(execCommand([CLI_PATH, COMMAND, '-c', validCrn])).to.be.rejectedWith(/required option \'-r, --region <region>\' not specified/),
-
-            // API Key is not specified
-            expect(execCommand([CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0]], { env: { ...process.env, IBMCLOUD_API_KEY: '' } }))
-                .to.be.rejectedWith(/Environment variable 'IBMCLOUD_API_KEY' is required but not set/),
-
-            // Invalid API Key provided
-            expect(execCommand([CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0]], { env: { ...process.env, IBMCLOUD_API_KEY: 'not-a-valid-apikey' } }))
-                .to.be.rejectedWith(/There was a problem getting a bearer token using IBMCLOUD_API_KEY/),
-
-            // Invalid region is provided
-            expect(execCommand([CLI_PATH, COMMAND, '-c', validCrn, '-r', mocks.invalidRegion])).to.be.rejectedWith(invalidRegionPattern),
-
-            // Invalid CRN is provided
-            expect(execCommand([CLI_PATH, COMMAND, '-c', mocks.invalidCrn, '-r', TARGET_REGIONS[0]])).to.be.rejectedWith(/Provided toolchain CRN is invalid/),
-
-            // Invalid Toolchain tag is provided
-            expect(execCommand([CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-t', mocks.invalidTag])).to.be.rejectedWith(/Provided tag is invalid/),
-
-            // Invalid Toolchain name is provided
-            expect(execCommand([CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-n', mocks.invalidTcName])).to.be.rejectedWith(/Provided toolchain name is invalid/),
-
-            // Invalid Resource Group ID or name is provided
-            expect(execCommand([CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-g', mocks.invalidRgName])).to.be.rejectedWith(/The resource group with provided ID or name was not found or is not accessible/),
-            expect(execCommand([CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-g', mocks.invalidRgId])).to.be.rejectedWith(/The resource group with provided ID or name was not found or is not accessible/),
-        ];
-        await Promise.all(tests).catch((e) => {
-            logger.dump(e.message);
-            assert.fail(e.message);
+    for (const { name, cmd, expected, options } of invalidArgsCases) {
+        it(`Invalid args: ${name}`, async () => {
+            await expectExecError(cmd, expected, options);
         });
-    });
+    }
 
-    it('Invalid user input handling in prompts', async () => {
-        const tests = [
-            // Invalid Toolchain tag is provided
-            expect(runPtyProcess(
-                [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]], {
+    const invalidUserInputCases = [
+        {
+            name: 'Invalid Toolchain tag is provided',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
+            expected: /Provided tag is invalid/,
+            options: {
                 questionAnswerMap: { '(Recommended) Add a tag to the cloned toolchain:': mocks.invalidTag },
                 exitCondition: 'Validation failed',
                 timeout: 5000
-            })
-            ).to.eventually.include('Provided tag is invalid'),
-
-            // Invalid Toolchain name is provided
-            expect(runPtyProcess(
-                [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region], {
+            }
+        },
+        {
+            name: 'Invalid Toolchain name is provided',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
+            expected: /Provided toolchain name is invalid/,
+            options: {
                 questionAnswerMap: { '(Recommended) Change the cloned toolchain\'s name:': mocks.invalidTcName },
                 exitCondition: 'Validation failed',
                 timeout: 5000
-            })
-            ).to.eventually.include('Provided toolchain name is invalid'),
-        ];
-        await Promise.all(tests).catch((e) => {
-            logger.dump(e.message);
-            assert.fail(e.message);
+            }
+        },
+    ];
+
+    for (const { name, cmd, expected, options } of invalidUserInputCases) {
+        it(`Invalid user input in prompts: ${name}`, async () => {
+            await expectPtyOutputToMatch(cmd, expected, options);
         });
-    });
+    }
 });
