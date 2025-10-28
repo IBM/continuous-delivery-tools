@@ -91,10 +91,10 @@ export function runPtyProcess(fullCommand, options) {
             ptyProcess.onExit(({ exitCode }) => {
                 if (timer) clearTimeout(timer);
                 if (timedOut) {
-                    reject(new Error(`ERROR: Process timed out after ${timeout}ms\n\nCommand: ${fullCommand}\n\nOutput:\n${cleanOutput(output)}`));
+                    reject(new Error(`ERROR: Process timed out after ${timeout}ms\n\nCommand: ${'node ' + fullCommand.join(' ')}\n\nOutput:\n${cleanOutput(output)}`));
                 }
                 if (exitCode !== 0) {
-                    reject(new Error(`ERROR: Process exited with code ${exitCode}\n\nCommand: ${fullCommand}\n\nOutput:\n${cleanOutput(output)}`));
+                    reject(new Error(`ERROR: Process exited with code ${exitCode}\n\nCommand: ${'node ' + fullCommand.join(' ')}\n\nOutput:\n${cleanOutput(output)}`));
                 } else {
                     resolve(cleanOutput(output));
                 }
