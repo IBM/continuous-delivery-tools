@@ -25,7 +25,7 @@ export async function promptUserConfirmation(question, expectedAns, exitMsg) {
         output: process.stdout
     });
 
-    const fullPrompt = question + `\n\nOnly '${expectedAns}' will be accepted to proceed.\n\nEnter a value: `;
+    const fullPrompt = question + `\n\nOnly '${expectedAns}' will be accepted to proceed. (Ctrl-C to abort)\n\nEnter a value: `;
     const answer = await rl.question(fullPrompt);
 
     logger.dump(fullPrompt + '\n' + answer + '\n');
@@ -38,7 +38,7 @@ export async function promptUserConfirmation(question, expectedAns, exitMsg) {
     }
 
     rl.close();
-    logger.print('\n');
+    logger.print();
 }
 
 export async function promptUserInput(question, initialInput, validationFn) {
@@ -75,7 +75,7 @@ export async function promptUserInput(question, initialInput, validationFn) {
     }
 
     rl.close();
-    logger.print('\n');
+    logger.print();
     return answer.trim();
 }
 
