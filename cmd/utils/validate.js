@@ -9,27 +9,9 @@
 
 import { execSync } from 'child_process';
 import { logger, LOG_STAGES } from './logger.js'
-import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, TERRAFORMER_REQUIRED_VERSION } from '../../config.js';
+import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, TERRAFORMER_REQUIRED_VERSION, UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE } from '../../config.js';
 import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroup, getGritGroupProject } from './requests.js';
 import { promptUserConfirmation, promptUserInput } from './utils.js';
-
-
-const SECRETS_MAP = {
-    'artifactory': ['token'],
-    'hashicorpvault': ['token', 'role_id', 'secret_id', 'password'],
-    'jenkins': ['webhook_url', 'api_token'],
-    'jira': ['api_token'],
-    'nexus': ['token'],
-    'pagerduty': ['service_key'],
-    'privateworker': ['worker_queue_credentials'],
-    'saucelabs': ['access_key'],
-    'securitycompliance': ['scc_api_key'],
-    'slack': ['webhook'],
-    'sonarqube': ['user_password'],
-    'gitlab': ['api_token'],
-    'githubconsolidated': ['api_token'],
-    'github_integrated': ['api_token']
-};
 
 
 function validatePrereqsVersions() {
@@ -252,7 +234,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 });
             }
             else {
-                const secretsToCheck = SECRETS_MAP[tool.tool_type_id] || [];    // Check for secrets in the rest of the tools
+                const secretsToCheck = UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE[tool.tool_type_id] || [];    // Check for secrets in the rest of the tools
                 Object.entries(tool.parameters).forEach(([key, value]) => {
                     if (secretPattern.test(value) && secretsToCheck.includes(key)) secrets.push(key);
                 });
@@ -293,7 +275,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
         logger.table(toolsWithHashedParams);
     }
 
-    if (!skipPrompt && (classicPipelines.length > 0 || hasInvalidConfig)) 
+    if (!skipPrompt && (classicPipelines.length > 0 || hasInvalidConfig))
         await promptUserConfirmation('Caution: The above tool(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
 
     return allTools.tools;

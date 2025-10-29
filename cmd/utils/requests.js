@@ -205,7 +205,7 @@ async function getResourceGroupIdAndName(bearer, accountId, resourceGroup) {
     switch (response.status) {
         case 200:
             if (response.data.items.length != 1) throw Error('The resource group with provided ID or name was not found or is not accessible');
-            return {id: response.data.items[0].doc.id, name: response.data.items[0].doc.name};
+            return { id: response.data.items[0].doc.id, name: response.data.items[0].doc.name };
         default:
             throw Error('The resource group with provided ID or name was not found or is not accessible');
     }

@@ -98,12 +98,12 @@ export function replaceUrlRegion(inputUrl, srcRegion, targetRegion) {
 *
 * @param {String} crn - The crn to decompose.
 **/
-export function decomposeCrn (crn) {
+export function decomposeCrn(crn) {
     const crnParts = crn.split(':');
 
     // Remove the 'a/' segment.
     let accountId = crnParts[6];
-    if(accountId) {
+    if (accountId) {
         accountId = accountId.split('/')[1];
     }
 
@@ -124,6 +124,6 @@ export function decomposeCrn (crn) {
 *
 * @param {String} value - The value to verify.
 **/
-export function isSecretReference (value) {
+export function isSecretReference(value) {
     return !!(VAULT_REGEX.find(r => r.test(value)));
 };
