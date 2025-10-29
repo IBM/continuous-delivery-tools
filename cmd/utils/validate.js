@@ -145,19 +145,19 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
 
         if (hasBoth) {
             // warning! prompt user to cancel, rename (e.g. add a suffix) or continue
-            logger.warn('Warning! You have a toolchain with the same name within the target region and resource group! \n', LOG_STAGES.setup, true);
+            logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Region: ${targetRegion}\n - Resource Group ID: ${targetResourceGroupId}`, '', true);
 
             if (!skipPrompt) {
-                newTcName = await promptUserInput('(Recommended) Change the cloned toolchain\'s name:\n', tcName, validateToolchainName);
+                newTcName = await promptUserInput(`\n(Recommended) Edit the cloned toolchain's name [default: ${tcName}] (Ctrl-C to abort):\n`, tcName, validateToolchainName);
             }
         } else {
             if (hasSameRegion) {
                 // soft warning of confusion
-                logger.warn('Warning! You have a toolchain with the same name within the target region!\n', LOG_STAGES.setup, true);
+                logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Region: ${targetRegion}`, '', true);
             }
             if (hasSameResourceGroup) {
                 // soft warning of confusion
-                logger.warn('Warning! You have a toolchain with the same name within the target resource group!\n', LOG_STAGES.setup, true);
+                logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Resource Group ID: ${targetResourceGroupId}`, '', true);
             }
         }
 
@@ -169,7 +169,7 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
                         if (str.trim() === '') return null;
                         return validateTag(str);
                     }
-                    newTag = await promptUserInput('(Recommended) Add a tag to the cloned toolchain:\n', `cloned-from-${srcRegion}`, validateTagOrEmpty);
+                    newTag = await promptUserInput('\n(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):\n', `cloned-from-${srcRegion}`, validateTagOrEmpty);
                 }
             }
             return [newTcName, newTag];
@@ -279,13 +279,16 @@ async function validateTools(token, tcId, region, skipPrompt) {
             }
         }
     }
-    const invalid = nonConfiguredTools.length > 0 || patTools.length > 0 || classicPipelines.length > 0 || toolsWithHashedParams.length > 0;
+    const hasInvalidConfig = nonConfiguredTools.length > 0 || patTools.length > 0 || toolsWithHashedParams.length > 0;
 
-    // Manually fail and reset spinner to prevent duplicate spinners
-    if (invalid) {
-        logger.failSpinner('Invalid tools found!');
-        logger.resetSpinner();
+    if (classicPipelines.length > 0) {
+        logger.failSpinner('Unsupported tools found!');
+        logger.warn('Warning! Classic pipelines are currently not supported in migration:\n', LOG_STAGES.setup, true);
+        logger.table(classicPipelines);
     }
+
+    if (hasInvalidConfig) logger.failSpinner('Configuration problems found!');
+    if (classicPipelines.length > 0 || hasInvalidConfig) logger.resetSpinner();    // Manually reset spinner to prevent duplicate spinners
 
     if (nonConfiguredTools.length > 0) {
         logger.warn('Warning! The following tool(s) are not in configured state in toolchain, please reconfigure them before proceeding: \n', LOG_STAGES.setup, true);
@@ -297,17 +300,13 @@ async function validateTools(token, tcId, region, skipPrompt) {
         logger.table(patTools);
     }
 
-    if (classicPipelines.length > 0) {
-        logger.warn('Warning! Classic pipelines are currently not supported in migration:\n', LOG_STAGES.setup, true);
-        logger.table(classicPipelines);
-    }
-
     if (toolsWithHashedParams.length > 0) {
         logger.warn('Warning! The following tools contain secrets that cannot be migrated, please use the \'check-secret\' command to export the secrets: \n', LOG_STAGES.setup, true);
         logger.table(toolsWithHashedParams);
     }
 
-    if (!skipPrompt && invalid) await promptUserConfirmation('Caution: The above tool(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
+    if (!skipPrompt && (classicPipelines.length > 0 || hasInvalidConfig)) 
+        await promptUserConfirmation('Caution: The above tool(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
 
     return allTools.tools;
 }
@@ -414,7 +413,7 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
 
         logger.print('Authorize using the following links: \n');
         oauthLinks.forEach((o) => {
-            logger.print(`${o.type}: \x1b[34m${o.link}\x1b[0m\n`);
+            logger.print(`${o.type}: \x1b[36m${o.link}\x1b[0m\n`);
         });
 
         if (!skipPrompt) await promptUserConfirmation('Caution: The above git tool integration(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
