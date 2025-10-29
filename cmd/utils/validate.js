@@ -95,18 +95,6 @@ function validateToolchainName(tcName) {
     throw Error('Provided toolchain name is invalid');
 }
 
-function validateResourceGroupId(rgId) {
-    if (typeof rgId != 'string') throw Error('Provided resource group ID is not a string');
-    const trimmed = rgId.trim();
-
-    // pattern from api docs
-    const pattern = /^[0-9a-f]{32}$/;
-    if (pattern.test(trimmed)) {
-        return trimmed;
-    }
-    throw Error('Provided resource group ID is invalid');
-}
-
 function validateTag(tag) {
     if (typeof tag != 'string') throw Error('Provided resource group ID is not a string');
     const trimmed = tag.trim();
@@ -120,7 +108,7 @@ function validateTag(tag) {
 }
 
 
-async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegion, targetResourceGroupId, targetTag, skipPrompt) {
+async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegion, targetResourceGroupId, targetResourceGroupName, targetTag, skipPrompt) {
     const toolchains = await getToolchainsByName(token, accountId, tcName);
 
     let hasSameRegion = false;
@@ -145,7 +133,7 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
 
         if (hasBoth) {
             // warning! prompt user to cancel, rename (e.g. add a suffix) or continue
-            logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Region: ${targetRegion}\n - Resource Group ID: ${targetResourceGroupId}`, '', true);
+            logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Region: ${targetRegion}\n - Resource Group: ${targetResourceGroupName} (${targetResourceGroupId})`, '', true);
 
             if (!skipPrompt) {
                 newTcName = await promptUserInput(`\n(Recommended) Edit the cloned toolchain's name [default: ${tcName}] (Ctrl-C to abort):\n`, tcName, validateToolchainName);
@@ -157,7 +145,7 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
             }
             if (hasSameResourceGroup) {
                 // soft warning of confusion
-                logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Resource Group ID: ${targetResourceGroupId}`, '', true);
+                logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Resource Group: ${targetResourceGroupName} (${targetResourceGroupId})`, '', true);
             }
         }
 
@@ -493,7 +481,6 @@ export {
     validatePrereqsVersions,
     validateToolchainId,
     validateToolchainName,
-    validateResourceGroupId,
     validateTag,
     validateTools,
     validateOAuth,

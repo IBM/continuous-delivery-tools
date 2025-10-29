@@ -75,6 +75,7 @@ export async function promptUserInput(question, initialInput, validationFn) {
     }
 
     rl.close();
+    logger.print('\n');
     return answer.trim();
 }
 
