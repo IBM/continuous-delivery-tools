@@ -185,7 +185,7 @@ async function getPipelineData(bearer, pipelineId, region) {
 }
 
 // takes in resource group ID or name
-async function getResourceGroupId(bearer, accountId, resourceGroup) {
+async function getResourceGroupIdAndName(bearer, accountId, resourceGroup) {
     const apiBaseUrl = 'https://api.global-search-tagging.cloud.ibm.com/v3';
     const options = {
         url: apiBaseUrl + '/resources/search',
@@ -196,7 +196,7 @@ async function getResourceGroupId(bearer, accountId, resourceGroup) {
         },
         data: {
             'query': `type:resource-group AND (name:${resourceGroup} OR doc.id:${resourceGroup}) AND doc.state:ACTIVE`,
-            'fields': ['doc.id']
+            'fields': ['doc.id', 'doc.name']
         },
         params: { account_id: accountId },
         validateStatus: () => true
@@ -205,7 +205,7 @@ async function getResourceGroupId(bearer, accountId, resourceGroup) {
     switch (response.status) {
         case 200:
             if (response.data.items.length != 1) throw Error('The resource group with provided ID or name was not found or is not accessible');
-            return response.data.items[0].doc.id;
+            return { id: response.data.items[0].doc.id, name: response.data.items[0].doc.name };
         default:
             throw Error('The resource group with provided ID or name was not found or is not accessible');
     }
@@ -371,7 +371,7 @@ export {
     getToolchainsByName,
     getToolchainTools,
     getPipelineData,
-    getResourceGroupId,
+    getResourceGroupIdAndName,
     getAppConfigHealthcheck,
     getSecretsHealthcheck,
     getGitOAuth,

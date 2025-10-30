@@ -16,8 +16,8 @@ import { Command, Option } from 'commander';
 import { parseEnvVar } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { setTerraformerEnv, setTerraformEnv, initProviderFile, runTerraformerImport, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
-import { getAccountId, getBearerToken, getResourceGroupId, getToolchain } from './utils/requests.js';
-import { validatePrereqsVersions, validateResourceGroupId, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
+import { getAccountId, getBearerToken, getResourceGroupIdAndName, getToolchain } from './utils/requests.js';
+import { validatePrereqsVersions, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
 
 import { COPY_TOOLCHAIN_DESC, MIGRATION_DOC_URL, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
@@ -85,6 +85,7 @@ async function main(options) {
 	let targetToolchainName = options.name;
 	let targetTag = options.tag;
 	let targetRgId;
+	let targetRgName;
 	let apiKey = options.apikey;
 	let moreTfResources = {};
 	let gritMapping = {};
@@ -138,17 +139,11 @@ async function main(options) {
 			exit(1);
 		}
 
-		if (!targetRg) {
-			// reuse resource group if not provided
-			targetRgId = sourceToolchainData['resource_group_id'];
-		} else {
-			targetRgId = await getResourceGroupId(bearer, accountId, targetRg);
-			validateResourceGroupId(targetRgId);
-		}
+		({ id: targetRgId, name: targetRgName } = await getResourceGroupIdAndName(bearer, accountId, targetRg || sourceToolchainData['resource_group_id']));
 
 		// reuse name if not provided
 		if (!targetToolchainName) targetToolchainName = sourceToolchainData['name'];
-		[targetToolchainName, targetTag] = await warnDuplicateName(bearer, accountId, targetToolchainName, sourceRegion, targetRegion, targetRgId, targetTag, skipUserConfirmation);
+		[targetToolchainName, targetTag] = await warnDuplicateName(bearer, accountId, targetToolchainName, sourceRegion, targetRegion, targetRgId, targetRgName, targetTag, skipUserConfirmation);
 
 		const allTools = await logger.withSpinner(validateTools,
 			'Validating Toolchain Tool(s)...',

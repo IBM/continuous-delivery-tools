@@ -25,7 +25,7 @@ export async function promptUserConfirmation(question, expectedAns, exitMsg) {
         output: process.stdout
     });
 
-    const fullPrompt = question + `\n\nOnly '${expectedAns}' will be accepted to proceed.\n\nEnter a value: `;
+    const fullPrompt = question + `\n\nOnly '${expectedAns}' will be accepted to proceed. (Ctrl-C to abort)\n\nEnter a value: `;
     const answer = await rl.question(fullPrompt);
 
     logger.dump(fullPrompt + '\n' + answer + '\n');
@@ -38,7 +38,7 @@ export async function promptUserConfirmation(question, expectedAns, exitMsg) {
     }
 
     rl.close();
-    logger.print('\n');
+    logger.print();
 }
 
 export async function promptUserInput(question, initialInput, validationFn) {
@@ -75,6 +75,7 @@ export async function promptUserInput(question, initialInput, validationFn) {
     }
 
     rl.close();
+    logger.print();
     return answer.trim();
 }
 
@@ -97,12 +98,12 @@ export function replaceUrlRegion(inputUrl, srcRegion, targetRegion) {
 *
 * @param {String} crn - The crn to decompose.
 **/
-export function decomposeCrn (crn) {
+export function decomposeCrn(crn) {
     const crnParts = crn.split(':');
 
     // Remove the 'a/' segment.
     let accountId = crnParts[6];
-    if(accountId) {
+    if (accountId) {
         accountId = accountId.split('/')[1];
     }
 
@@ -123,6 +124,6 @@ export function decomposeCrn (crn) {
 *
 * @param {String} value - The value to verify.
 **/
-export function isSecretReference (value) {
+export function isSecretReference(value) {
     return !!(VAULT_REGEX.find(r => r.test(value)));
 };

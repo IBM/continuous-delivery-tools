@@ -101,7 +101,7 @@ describe('copy-toolchain: Test user input handling', function () {
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
             expected: /Provided tag is invalid/,
             options: {
-                questionAnswerMap: { '(Recommended) Add a tag to the cloned toolchain:': mocks.invalidTag },
+                questionAnswerMap: { '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):' : mocks.invalidTag },
                 exitCondition: 'Validation failed',
                 timeout: 5000
             }
@@ -111,7 +111,7 @@ describe('copy-toolchain: Test user input handling', function () {
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
             expected: /Provided toolchain name is invalid/,
             options: {
-                questionAnswerMap: { '(Recommended) Change the cloned toolchain\'s name:': mocks.invalidTcName },
+                questionAnswerMap: { [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`] : mocks.invalidTcName },
                 exitCondition: 'Validation failed',
                 timeout: 5000
             }
