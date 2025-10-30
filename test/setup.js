@@ -30,9 +30,10 @@ export const mochaHooks = {
     },
     beforeEach() {
         if (DEBUG_MODE === true && LOG_DIR) {
-            const logFile = this.currentTest.parent.command ? 
-                resolve(LOG_DIR, this.currentTest.parent.command, this.currentTest.title + '.log') :
-                resolve(LOG_DIR, this.currentTest.title + '.log');
+            const testTitle = this.currentTest.title.toLowerCase().replaceAll(':', '').replaceAll(' ', '-');
+            const logFile = this.currentTest.parent.command ?
+                resolve(LOG_DIR, this.currentTest.parent.command, testTitle + '.log') :
+                resolve(LOG_DIR, testTitle + '.log');
             logger.createLogStream(logFile);
         }
     },

@@ -126,7 +126,12 @@ export async function expectExecError(fullCommand, expectedMessage, options) {
 }
 
 export async function expectPtyOutputToMatch(fullCommand, expectedMessage, options) {
-    const output = await runPtyProcess(fullCommand, options);
-    logger.dump(output);
-    expect(output).to.match(expectedMessage);
+    try {
+        const output = await runPtyProcess(fullCommand, options);
+        logger.dump(output);
+        expect(output).to.match(expectedMessage);
+    } catch (e) {
+        logger.dump(e.message);
+        throw (e);
+    }
 }
