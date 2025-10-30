@@ -163,7 +163,8 @@ const UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE = {
 		"service_key"
 	],
 	"private_worker": [
-		"workerQueueCredentials"
+		"workerQueueCredentials",
+		"worker_queue_credentials"
 	],
 	"saucelabs": [
 		"key",
