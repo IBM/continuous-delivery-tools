@@ -15,9 +15,10 @@ import { Command, Option } from 'commander';
 
 import { parseEnvVar } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
-import { setTerraformerEnv, setTerraformEnv, initProviderFile, runTerraformerImport, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
-import { getAccountId, getBearerToken, getResourceGroupIdAndName, getToolchain } from './utils/requests.js';
+import { setTerraformEnv, initProviderFile, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
+import { getAccountId, getBearerToken, getIamAuthPolicies, getResourceGroupIdAndName, getToolchain } from './utils/requests.js';
 import { validatePrereqsVersions, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
+import { importTerraform } from './utils/import-terraform.js';
 
 import { COPY_TOOLCHAIN_DESC, MIGRATION_DOC_URL, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
@@ -87,10 +88,11 @@ async function main(options) {
 	let targetRgId;
 	let targetRgName;
 	let apiKey = options.apikey;
+	let policyIds; // used to include s2s auth policies
 	let moreTfResources = {};
 	let gritMapping = {};
 
-	// Validate arguments are valid and check if Terraformer and Terraform are installed appropriately
+	// Validate arguments are valid and check if Terraform is installed appropriately
 	try {
 		validatePrereqsVersions();
 
@@ -169,6 +171,7 @@ async function main(options) {
 		// collect instances of legacy GHE tool integrations
 		const collectGHE = () => {
 			moreTfResources['github_integrated'] = [];
+
 			allTools.forEach((t) => {
 				if (t.tool_type_id === 'github_integrated') {
 					moreTfResources['github_integrated'].push(t);
@@ -177,6 +180,18 @@ async function main(options) {
 		};
 
 		collectGHE();
+
+		if (includeS2S) {
+			// TODO: add try-catch
+			moreTfResources['iam_authorization_policy'] = [];
+
+			const res = await getIamAuthPolicies(bearer, accountId);
+
+			policyIds = res['policies'].filter((p) => p.subjects[0].attributes.find(
+				(a) => a.name === 'serviceInstance' && a.value === sourceToolchainId)
+			);
+			policyIds = policyIds.map((p) => p.id);
+		}
 
 		logger.info('Arguments and required packages verified, proceeding with copying toolchain...', LOG_STAGES.setup);
 
@@ -195,23 +210,21 @@ async function main(options) {
 	}
 
 	try {
-		const runTerraformer = async () => {
+		const importTerraformWrapper = async () => {
 			setTimeout(() => {
 				logger.updateSpinnerMsg('Still importing toolchain...');
 			}, 5000);
 
-			setTerraformerEnv(apiKey, sourceToolchainId, includeS2S);
-
 			await initProviderFile(sourceRegion, TEMP_DIR);
 			await runTerraformInit(TEMP_DIR);
 
-			await runTerraformerImport(sourceRegion, TEMP_DIR, isCompact, verbosity);
+			await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, targetToolchainName, policyIds, TEMP_DIR, isCompact, verbosity);
 		};
 		await logger.withSpinner(
-			runTerraformer,
+			importTerraformWrapper,
 			'Importing toolchain...',
-			'Toolchain successfully imported using Terraformer',
-			LOG_STAGES.terraformer
+			'Toolchain successfully imported',
+			LOG_STAGES.import
 		);
 	} catch (err) {
 		if (err.message && err.stack) {
@@ -225,10 +238,10 @@ async function main(options) {
 	// Prepare for Terraform
 	try {
 		if (!fs.existsSync(outputDir)) {
-			logger.info(`Creating output directory "${outputDir}"...`, LOG_STAGES.terraformer);
+			logger.info(`Creating output directory "${outputDir}"...`, LOG_STAGES.import);
 			fs.mkdirSync(outputDir);
 		} else {
-			logger.info(`Output directory "${outputDir}" already exists`, LOG_STAGES.terraformer);
+			logger.info(`Output directory "${outputDir}" already exists`, LOG_STAGES.import);
 		}
 
 		await setupTerraformFiles({
@@ -249,7 +262,7 @@ async function main(options) {
 	} catch (err) {
 		if (err.message && err.stack) {
 			const errMsg = verbosity > 1 ? err.stack : err.message;
-			logger.error(errMsg, LOG_STAGES.terraformer);
+			logger.error(errMsg, LOG_STAGES.import);
 		}
 		await handleCleanup();
 		exit(1);
@@ -258,7 +271,7 @@ async function main(options) {
 	// Run Terraform
 	try {
 		if (!dryRun) {
-			setTerraformEnv(verbosity);
+			setTerraformEnv(apiKey, verbosity);
 
 			await logger.withSpinner(runTerraformInit,
 				'Running terraform init...',

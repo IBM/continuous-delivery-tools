@@ -51,8 +51,6 @@ const TARGET_REGIONS = [
 
 const TERRAFORM_REQUIRED_VERSION = '1.13.3';
 
-const TERRAFORMER_REQUIRED_VERSION = '0.8.30';
-
 // see https://docs.gitlab.com/user/reserved_names/
 const RESERVED_GRIT_PROJECT_NAMES = [
 	'\\-',
@@ -153,8 +151,7 @@ const UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE = {
 		"api_token"
 	],
 	"jira": [
-		"password",
-		"api_token"
+		"password"
 	],
 	"nexus": [
 		"token"
@@ -163,22 +160,86 @@ const UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE = {
 		"service_key"
 	],
 	"private_worker": [
-		"workerQueueCredentials",
-		"worker_queue_credentials"
+		"workerQueueCredentials"
 	],
 	"saucelabs": [
-		"key",
-		"access_key"
+		"key"
 	],
 	"security_compliance": [
 		"scc_api_key"
 	],
 	"slack": [
-		"api_token",
-		"webhook"
+		"api_token"
 	],
 	"sonarqube": [
 		"user_password"
+	]
+};
+
+/* 
+Format:
+	Maps tool_type_id to a list of the following ...
+	{ 
+		key: str, // tool parameter key
+		tfKey?: str, // terraform-equivalent key
+		prereq?: { key: string, values: [string] }, // proceed only if tool parameter "prereq.key" is one of "values"
+		required?: bool // is this key required for terraform?
+	}
+	... which represents a secret/sensitive value
+*/
+const SECRET_KEYS_MAP = {
+	"artifactory": [
+		{ key: "token", tfKey: "token" }
+	],
+	"cloudobjectstorage": [
+		{ key: "cos_api_key", tfKey: "cos_api_key", prereq: { key: "auth_type", values: ["apikey"] } },
+		{ key: "hmac_access_key_id", tfKey: "hmac_access_key_id", prereq: { key: "auth_type", values: ["hmac"] } },
+		{ key: "hmac_secret_access_key", tfKey: "hmac_secret_access_key", prereq: { key: "auth_type", values: ["hmac"] } },
+	],
+	"github_integrated": [
+		{ key: "api_token" } // no terraform equivalent
+	],
+	"githubconsolidated": [
+		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
+	],
+	"gitlab": [
+		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
+	],
+	"hashicorpvault": [
+		{ key: "token", tfKey: "token", prereq: { key: "authentication_method", values: ["github", "token"] } },
+		{ key: "role_id", tfKey: "role_id", prereq: { key: "authentication_method", values: ["approle"] } },
+		{ key: "secret_id", tfKey: "secret_id", prereq: { key: "authentication_method", values: ["approle"] } },
+		{ key: "password", tfKey: "password", prereq: { key: "authentication_method", values: ["userpass"] } },
+	],
+	"hostedgit": [
+		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
+	],
+	"jenkins": [
+		{ key: "api_token", tfKey: "api_token" },
+	],
+	"jira": [
+		{ key: "password", tfKey: "api_token" },
+	],
+	"nexus": [
+		{ key: "token", tfKey: "token" },
+	],
+	"pagerduty": [
+		{ key: "service_key", tfKey: "service_key", required: true },
+	],
+	"private_worker": [
+		{ key: "workerQueueCredentials", tfKey: "worker_queue_credentials", required: true },
+	],
+	"saucelabs": [
+		{ key: "key", tfKey: "access_key", required: true },
+	],
+	"security_compliance": [
+		{ key: "scc_api_key", tfKey: "scc_api_key", prereq: { key: "use_profile_attachment", values: ["enabled"] } },
+	],
+	"slack": [
+		{ key: "api_token", tfKey: "webhook", required: true },
+	],
+	"sonarqube": [
+		{ key: "user_password", tfKey: "user_password" },
 	]
 };
 
@@ -191,11 +252,11 @@ const VAULT_REGEX = [
 export {
 	COPY_TOOLCHAIN_DESC,
 	UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE,
+	SECRET_KEYS_MAP,
 	MIGRATION_DOC_URL,
 	SOURCE_REGIONS,
 	TARGET_REGIONS,
 	TERRAFORM_REQUIRED_VERSION,
-	TERRAFORMER_REQUIRED_VERSION,
 	RESERVED_GRIT_PROJECT_NAMES,
 	RESERVED_GRIT_GROUP_NAMES,
 	RESERVED_GRIT_SUBGROUP_NAME,

@@ -7,5 +7,5 @@
  * Contract with IBM Corp.
  */
 
-describe('copy-toolchain: Test Terraformer output', function () {
+describe('copy-toolchain: Test import-terraform output', function () {
 });

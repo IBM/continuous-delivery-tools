@@ -8,6 +8,8 @@
  */
 
 import * as readline from 'node:readline/promises';
+import { randomInt } from 'node:crypto';
+
 import { logger } from './logger.js';
 import { VAULT_REGEX } from '../../config.js';
 
@@ -126,4 +128,26 @@ export function decomposeCrn(crn) {
 **/
 export function isSecretReference(value) {
     return !!(VAULT_REGEX.find(r => r.test(value)));
+};
+
+export function getRandChars(size) {
+    const charSet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let res = '';
+
+    for (let i = 0; i < size; i++) {
+        const pos = randomInt(charSet.length);
+        res += charSet[pos];
+    }
+    return res;
+};
+
+export function normalizeName(str) {
+    const specialChars = `-<>()*#{}[]|@_ .%'",&`;
+    let newStr = str;
+
+    for (const char of specialChars) {
+        newStr = newStr.replaceAll(char, '_');
+    }
+
+    return newStr.toLowerCase();
 };

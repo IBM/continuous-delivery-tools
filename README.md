@@ -22,7 +22,6 @@ Provides tools to work with IBM Cloud Continuous Delivery resources, including *
 ## Prerequisites
 - Node.js v20 (or later)
 - Terraform v1.13.3 (or later)
-- Terraformer v0.8.30 (or later)
 - An **IBM Cloud API key** with the following IAM access permissions:
   - **Viewer** for the source Toolchain(s) being copied
   - **Editor** for create new Toolchains in the target region
@@ -30,20 +29,18 @@ Provides tools to work with IBM Cloud Continuous Delivery resources, including *
 - For Git Repos and Issue Tracking projects, Personal Access Tokens (PAT) for the source and destination regions are required, with the `api` scope.
 
 ## Install
-### Install Node.js, Terraform, Terraformer
+### Install Node.js, Terraform
 
 #### MacOS
 ```sh
 brew install node
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform
-brew install terraformer
 ```
 
 #### Other platfoms
 - Node.js [install instructions](https://nodejs.org/en/download)
 - Terraform [install instructions](https://developer.hashicorp.com/terraform/install)
-- Terraformer [install instructions](https://github.com/GoogleCloudPlatform/terraformer?tab=readme-ov-file#installation)
 
 ## Usage
 

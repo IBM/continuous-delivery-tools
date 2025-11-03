@@ -9,7 +9,7 @@
 
 import { execSync } from 'child_process';
 import { logger, LOG_STAGES } from './logger.js'
-import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, TERRAFORMER_REQUIRED_VERSION, UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE } from '../../config.js';
+import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE } from '../../config.js';
 import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroup, getGritGroupProject } from './requests.js';
 import { promptUserConfirmation, promptUserInput } from './utils.js';
 
@@ -40,17 +40,6 @@ function validatePrereqsVersions() {
         throw Error(`Terraform does not meet minimum version requirement: ${TERRAFORM_REQUIRED_VERSION}`);
     }
     logger.info(`\x1b[32m✔\x1b[0m Terraform Version: ${version}`, LOG_STAGES.setup);
-
-    try {
-        stdout = execSync('terraformer version').toString();
-    } catch {
-        throw Error('Terraformer is not installed or not in PATH');
-    }
-    version = stdout.match(/\d+(\.\d+)+/)[0];
-    if (!compareVersions(version, TERRAFORMER_REQUIRED_VERSION)) {
-        throw Error(`Terraformer does not meet minimum version requirement: ${TERRAFORMER_REQUIRED_VERSION}`);
-    }
-    logger.info(`\x1b[32m✔\x1b[0m Terraformer Version: ${version}`, LOG_STAGES.setup);
 }
 
 function validateToolchainId(tcId) {
@@ -385,6 +374,8 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
         oauthLinks.forEach((o) => {
             logger.print(`${o.type}: \x1b[36m${o.link}\x1b[0m\n`);
         });
+
+        // TODO: if one or more request fail, prompt user to verify at https://cloud.ibm.com/devops/git?env_id=ibm:yp:${region}
 
         if (!skipPrompt) await promptUserConfirmation('Caution: The above git tool integration(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
     }
