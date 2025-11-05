@@ -14,7 +14,7 @@ import child_process from 'child_process';
 import stripAnsi from 'strip-ansi';
 import pty from 'node-pty';
 import nconf from 'nconf';
-import { expect } from 'chai';
+import { expect, assert } from 'chai';
 
 import { getBearerToken, deleteToolchain } from '../../cmd/utils/requests.js';
 import { logger } from '../../cmd/utils/logger.js';
@@ -142,14 +142,20 @@ export async function deleteCreatedToolchains(toolchainsToDelete) {
     }
 }
 
-export async function expectExecError(fullCommand, expectedMessage, options) {
+export async function assertExecError(fullCommand, expectedMessage, options, assertionFn) {
     try {
         const output = await execCommand(fullCommand, options);
         logger.dump(output);
         throw new Error('Expected command to fail but it succeeded');
     } catch (e) {
         logger.dump(e.message);
-        expect(e.message).to.match(expectedMessage);
+        if (assertionFn) {
+            assertionFn(e.message);
+        } else if (expectedMessage) {
+            expect(e.message).to.match(expectedMessage);
+        } else {
+            assert.fail(0, 1, 'No assertion function or expected message provided.');
+        }
     }
 }
 
@@ -161,6 +167,8 @@ export async function assertPtyOutput(fullCommand, expectedMessage, options, ass
             assertionFn(output);
         } else if (expectedMessage) {
             expect(output).to.match(expectedMessage);
+        } else {
+            assert.fail(0, 1, 'No assertion function or expected message provided.');
         }
         return parseTcIdAndRegion(output);
     } catch (e) {

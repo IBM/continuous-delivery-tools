@@ -9,12 +9,14 @@
 
 import path from 'node:path';
 import nconf from 'nconf';
+import fs from 'node:fs';
 
 import * as chai from 'chai';
+import { expect } from 'chai';
 chai.config.truncateThreshold = 0;
 
 import mocks from '../data/mocks.js';
-import { expectExecError, assertPtyOutput } from '../utils/testUtils.js';
+import { assertExecError, assertPtyOutput } from '../utils/testUtils.js';
 import { TEST_TOOLCHAINS } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
 
@@ -22,6 +24,7 @@ nconf.env('__');
 nconf.file('local', 'test/config/local.json');
 
 const VERBOSE_MODE = nconf.get('VERBOSE_MODE');
+const TEMP_DIR = nconf.get('TEST_TEMP_DIR');
 
 const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
@@ -32,7 +35,6 @@ describe('copy-toolchain: Test user input handling', function () {
     this.command = 'copy-toolchain';
 
     const validCrn = TEST_TOOLCHAINS['empty'].crn;
-
     const invalidArgsCases = [
         {
             name: 'Toolchain CRN not specified',
@@ -86,13 +88,37 @@ describe('copy-toolchain: Test user input handling', function () {
             cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-g', mocks.invalidRgId],
             expected: /The resource group with provided ID or name was not found or is not accessible/,
         },
+        {
+            name: 'Non-existent GRIT mapping file provided',
+            cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-G', 'non-existent.json'],
+            expected: /ENOENT: no such file or directory/
+        }
     ];
 
-    for (const { name, cmd, expected, options } of invalidArgsCases) {
+    for (const { name, cmd, expected, options, assertionFn } of invalidArgsCases) {
         it(`Invalid args: ${name}`, async () => {
-            await expectExecError(cmd, expected, options);
+            await assertExecError(cmd, expected, options, assertionFn);
         });
     }
+
+    it('Invalid GRIT URL mapping provided in file', async () => {
+
+        const gritTestDir = path.resolve(TEMP_DIR, 'invalid-grit-mapping-provided-in-file');
+        const gritMappingFilePath = path.resolve(gritTestDir, mocks.invalidGritFileName);
+
+        if (!fs.existsSync(gritTestDir)) fs.mkdirSync(gritTestDir, { recursive: true });
+        fs.writeFileSync(gritMappingFilePath, JSON.stringify(mocks.invalidGritMapping, null, 2));
+
+        await assertExecError(
+            [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-G', mocks.invalidGritFileName],
+            null,
+            { cwd: gritTestDir },
+            (err) => {
+                expect(err).to.match(/Error: Provided full GRIT url is not valid/);
+                expect(err).to.match(/One or more invalid entries in GRIT mapping file, error count: 2/);
+            }
+        );
+    });
 
     const invalidUserInputCases = [
         {

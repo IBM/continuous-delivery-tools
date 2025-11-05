@@ -12,7 +12,7 @@ import nconf from 'nconf';
 
 import * as chai from 'chai';
 chai.config.truncateThreshold = 0;
-import { expect, assert } from 'chai';
+import { expect } from 'chai';
 
 import { assertPtyOutput, areFilesInDir, deleteCreatedToolchains } from '../utils/testUtils.js';
 import { TEST_TOOLCHAINS, DEFAULT_RG_ID, R2R_CLI_RG_ID } from '../data/test-toolchains.js';
@@ -21,7 +21,6 @@ import { TARGET_REGIONS } from '../../config.js';
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');
 
-const TEMP_DIR = nconf.get('TEST_TEMP_DIR');
 const VERBOSE_MODE = nconf.get('VERBOSE_MODE');
 
 const CLI_PATH = path.resolve('index.js');

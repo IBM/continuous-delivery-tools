@@ -48,6 +48,11 @@ export const TEST_TOOLCHAINS = {
         crn: 'crn:v1:bluemix:public:toolchain:eu-es:a/9e8559fac61ee9fc74d3e595fa75d147:cdc271bc-cc07-4a85-beb2-895e033319b0::',
         region: 'eu-es'
     },
+    'single-pl': {
+        name: 'KEEP-SINGLE-PIPELINE-TOOLCHAIN',
+        crn: 'crn:v1:bluemix:public:toolchain:us-east:a/9e8559fac61ee9fc74d3e595fa75d147:5ef88780-1e0f-4cda-94c7-f78909cc1140::',
+        region: 'us-east'
+    }
 };
 
 export const DEFAULT_RG_ID = '63b47433992f4295bc490852cbf1cb55';
