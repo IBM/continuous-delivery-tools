@@ -25,7 +25,9 @@ const DEBUG_MODE = nconf.get('TEST_DEBUG_MODE');
 
 export const mochaHooks = {
     beforeAll() {
-        if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+        if (fs.existsSync(TEMP_DIR))
+            fs.rmSync(TEMP_DIR, { recursive: true });
+        fs.mkdirSync(TEMP_DIR, { recursive: true });
         if (fs.existsSync(LOG_DIR)) fs.rmSync(LOG_DIR, { recursive: true });
     },
     beforeEach() {
@@ -35,10 +37,14 @@ export const mochaHooks = {
                 resolve(LOG_DIR, this.currentTest.parent.command, testTitle + '.log') :
                 resolve(LOG_DIR, testTitle + '.log');
             logger.createLogStream(logFile);
+            // Adding logging for log stream creation and closing, because there's cases of missing test log files when running tests in parallel, most likely because of the singleton logger, 
+            // causing some sort of race condition happening
+            // console.info(`Created test log stream for test case '${this.currentTest.title}'`);
         }
     },
-    afterEach() {
-        logger.close();
+    async afterEach() {
+        await logger.close();
+        // console.info(`Closed test log stream for test case '${this.currentTest.title}'`);
     },
     afterAll() {
         if (fs.existsSync(TEMP_DIR) && DEBUG_MODE === false) fs.rmSync(TEMP_DIR, { recursive: true });

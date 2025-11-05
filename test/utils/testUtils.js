@@ -8,6 +8,8 @@
  */
 
 import { promisify } from 'util';
+import fs from "fs";
+import path from "path";
 import child_process from 'child_process';
 import stripAnsi from 'strip-ansi';
 import pty from 'node-pty';
@@ -20,15 +22,39 @@ import { logger } from '../../cmd/utils/logger.js';
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');
 
+const TEMP_DIR = nconf.get('TEST_TEMP_DIR');
 const IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
 
 function cleanOutput(data) {
     if (typeof data === 'string') return stripAnsi(data).replace(/\r/g, '').trim();
 }
 
+function parseTcIdAndRegion(output) {
+    const pattern = /See cloned toolchain: https:\/\/cloud\.ibm\.com\/devops\/toolchains\/([a-zA-Z0-9-]+)\?env_id=ibm\:yp\:([a-zA-Z0-9-]+)/;
+    const match = output.match(pattern);
+
+    if (match) {
+        const toolchainId = match[1];
+        const region = match[2];
+        return { toolchainId, region };
+    } else {
+        return null;
+    }
+}
+
 export async function execCommand(fullCommand, options) {
     const commandStr = `node ${fullCommand.join(' ')}`;
     const execPromise = promisify(child_process.exec);
+
+    if (!options) {
+        options = { cwd: TEMP_DIR }
+    } else {
+        options.cwd ??= TEMP_DIR;
+        if (!fs.existsSync(options.cwd)) {
+            fs.mkdirSync(options.cwd, { recursive: true });
+        }
+    }
+
     try {
         const { stdout, stderr } = await execPromise(commandStr, options);
         if (stderr) {
@@ -51,11 +77,13 @@ export async function execCommand(fullCommand, options) {
 export function runPtyProcess(fullCommand, options) {
     const {
         timeout = 0,
-        cwd = process.cwd(),
+        cwd = TEMP_DIR,
         env = process.env,
         questionAnswerMap = {},
         exitCondition = '',
     } = options;
+
+    if (!fs.existsSync(cwd)) fs.mkdirSync(cwd, { recursive: true });
 
     return new Promise((resolve, reject) => {
         try {
@@ -106,7 +134,7 @@ export function runPtyProcess(fullCommand, options) {
     });
 }
 
-export async function testSuiteCleanup(toolchainsToDelete) {
+export async function deleteCreatedToolchains(toolchainsToDelete) {
     if (toolchainsToDelete && typeof toolchainsToDelete === 'object' && toolchainsToDelete.size > 0) {
         const token = await getBearerToken(IBMCLOUD_API_KEY);
         const deletePromises = [...toolchainsToDelete.entries()].map(([id, region]) => deleteToolchain(token, id, region));
@@ -125,13 +153,43 @@ export async function expectExecError(fullCommand, expectedMessage, options) {
     }
 }
 
-export async function expectPtyOutputToMatch(fullCommand, expectedMessage, options) {
+export async function assertPtyOutput(fullCommand, expectedMessage, options, assertionFn) {
     try {
         const output = await runPtyProcess(fullCommand, options);
         logger.dump(output);
-        expect(output).to.match(expectedMessage);
+        if (assertionFn) {
+            assertionFn(output);
+        } else if (expectedMessage) {
+            expect(output).to.match(expectedMessage);
+        }
+        return parseTcIdAndRegion(output);
     } catch (e) {
         logger.dump(e.message);
         throw (e);
     }
+}
+
+export function areFilesInDir(dirPath, filePatterns) {
+    const foundFiles = [];
+
+    function searchDirectory(currentPath) {
+        const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(currentPath, entry.name);
+            if (entry.isDirectory()) {
+                searchDirectory(fullPath);
+            } else {
+                foundFiles.push(entry.name);
+            }
+        }
+    }
+
+    searchDirectory(dirPath);
+    for (const pattern of filePatterns) {
+        const regex = new RegExp(pattern);
+        if (!foundFiles.some(file => regex.test(file))) {
+            return false;
+        }
+    }
+    return true;
 }

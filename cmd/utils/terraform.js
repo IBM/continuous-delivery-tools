@@ -16,7 +16,7 @@ import { parse as tfToJson } from '@cdktf/hcl2json'
 import { jsonToTf } from 'json-to-tf';
 
 import { validateToolchainId, validateGritUrl } from './validate.js';
-import { logger } from './logger.js';
+import { logger, LOG_STAGES } from './logger.js';
 import { promptUserInput, replaceUrlRegion } from './utils.js';
 
 // promisify
@@ -325,8 +325,12 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
     return Promise.all(promises);
 }
 
-async function runTerraformInit(dir) {
-    return await execPromise('terraform init', { cwd: dir });
+async function runTerraformInit(dir, verbosity) {
+    logger.log('Running command \'terraform init\'', LOG_STAGES.tf);
+    const out = await execPromise('terraform init', { cwd: dir });
+    if (verbosity >= 2) logger.print(out, '\n');
+    logger.log('Command \'terraform init\' completed', LOG_STAGES.tf);
+    return out;
 }
 
 // primarily used to get number of resources to be used

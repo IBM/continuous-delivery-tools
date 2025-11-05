@@ -4,5 +4,6 @@
     "TEST_LOG_DIR": "test/.logs",
     "IBMCLOUD_API_KEY": "<YOUR IBMCLOUD API KEY>",
     "LOG_DUMP": true,
-    "DISABLE_SPINNER": true
+    "DISABLE_SPINNER": true,
+    "VERBOSE_MODE": false
 }

@@ -203,7 +203,7 @@ async function main(options) {
 			setTerraformerEnv(apiKey, sourceToolchainId, includeS2S);
 
 			await initProviderFile(sourceRegion, TEMP_DIR);
-			await runTerraformInit(TEMP_DIR);
+			await runTerraformInit(TEMP_DIR, verbosity);
 
 			await runTerraformerImport(sourceRegion, TEMP_DIR, isCompact, verbosity);
 		};
@@ -264,7 +264,8 @@ async function main(options) {
 				'Running terraform init...',
 				'Terraform successfully initialized',
 				LOG_STAGES.tf,
-				outputDir
+				outputDir,
+				verbosity
 			);
 
 			logger.info(`DRY_RUN: ${dryRun}, running terraform apply...`, LOG_STAGES.tf);

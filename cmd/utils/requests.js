@@ -356,7 +356,7 @@ async function deleteToolchain(bearer, toolchainId, region) {
     };
     const response = await axios(options);
     switch (response.status) {
-        case 200:
+        case 204:
             return toolchainId;
         default:
             throw Error(response.statusText);
