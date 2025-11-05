@@ -120,62 +120,6 @@ const RESERVED_GRIT_GROUP_NAMES = [
 
 const RESERVED_GRIT_SUBGROUP_NAME = '\\-';
 
-const UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE = {
-	"artifactory": [
-		"token"
-	],
-	"cloudobjectstorage": [
-		"cos_api_key",
-		"hmac_access_key_id",
-		"hmac_secret_access_key"
-	],
-	"github_integrated": [
-		"api_token"
-	],
-	"githubconsolidated": [
-		"api_token"
-	],
-	"gitlab": [
-		"api_token"
-	],
-	"hashicorpvault": [
-		"token",
-		"role_id",
-		"secret_id",
-		"password"
-	],
-	"hostedgit": [
-		"api_token"
-	],
-	"jenkins": [
-		"api_token"
-	],
-	"jira": [
-		"password"
-	],
-	"nexus": [
-		"token"
-	],
-	"pagerduty": [
-		"service_key"
-	],
-	"private_worker": [
-		"workerQueueCredentials"
-	],
-	"saucelabs": [
-		"key"
-	],
-	"security_compliance": [
-		"scc_api_key"
-	],
-	"slack": [
-		"api_token"
-	],
-	"sonarqube": [
-		"user_password"
-	]
-};
-
 /* 
 Format:
 	Maps tool_type_id to a list of the following ...
@@ -243,6 +187,31 @@ const SECRET_KEYS_MAP = {
 	]
 };
 
+// maps tool parameter tool_type_id to terraform resource type
+const SUPPORTED_TOOLS_MAP = {
+	"appconfig": "ibm_cd_toolchain_tool_appconfig",
+	"artifactory": "ibm_cd_toolchain_tool_artifactory",
+	"bitbucketgit": "ibm_cd_toolchain_tool_bitbucketgit",
+	"private_worker": "ibm_cd_toolchain_tool_privateworker",
+	"draservicebroker": "ibm_cd_toolchain_tool_devopsinsights",
+	"eventnotifications": "ibm_cd_toolchain_tool_eventnotifications",
+	"hostedgit": "ibm_cd_toolchain_tool_hostedgit",
+	"githubconsolidated": "ibm_cd_toolchain_tool_githubconsolidated",
+	"gitlab": "ibm_cd_toolchain_tool_gitlab",
+	"hashicorpvault": "ibm_cd_toolchain_tool_hashicorpvault",
+	"jenkins": "ibm_cd_toolchain_tool_jenkins",
+	"jira": "ibm_cd_toolchain_tool_jira",
+	"keyprotect": "ibm_cd_toolchain_tool_keyprotect",
+	"nexus": "ibm_cd_toolchain_tool_nexus",
+	"customtool": "ibm_cd_toolchain_tool_custom",
+	"saucelabs": "ibm_cd_toolchain_tool_saucelabs",
+	"secretsmanager": "ibm_cd_toolchain_tool_secretsmanager",
+	"security_compliance": "ibm_cd_toolchain_tool_securitycompliance",
+	"slack": "ibm_cd_toolchain_tool_slack",
+	"sonarqube": "ibm_cd_toolchain_tool_sonarqube",
+	"pipeline": "ibm_cd_toolchain_tool_pipeline"
+};
+
 const VAULT_REGEX = [
 	new RegExp('[\\{]{1}(?<reference>\\b(?<provider>vault)\\b[:]{2}(?<integration>[ a-zA-Z0-9_-]*)[.]{0,1}(?<secret>.*))[\\}]{1}', 'iu'),
 	new RegExp('^(?<reference>crn:v1:(?:bluemix|staging):public:(?<type>secrets-manager):(?<region>[a-zA-Z0-9-]*)\\b:a\/(?<account_id>[0-9a-fA-F]*)\\b:(?<instance_id>[0-9a-fA-F]{8}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{12})\\b:secret:(?<secret_id>[0-9a-fA-F]{8}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{12}))$', 'iu'),
@@ -251,8 +220,6 @@ const VAULT_REGEX = [
 
 export {
 	COPY_TOOLCHAIN_DESC,
-	UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE,
-	SECRET_KEYS_MAP,
 	MIGRATION_DOC_URL,
 	SOURCE_REGIONS,
 	TARGET_REGIONS,
@@ -260,5 +227,7 @@ export {
 	RESERVED_GRIT_PROJECT_NAMES,
 	RESERVED_GRIT_GROUP_NAMES,
 	RESERVED_GRIT_SUBGROUP_NAME,
+	SECRET_KEYS_MAP,
+	SUPPORTED_TOOLS_MAP,
 	VAULT_REGEX
 };

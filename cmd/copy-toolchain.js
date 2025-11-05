@@ -181,8 +181,7 @@ async function main(options) {
 
 		collectGHE();
 
-		if (includeS2S) {
-			// TODO: add try-catch
+		const collectPolicyIds = async () => {
 			moreTfResources['iam_authorization_policy'] = [];
 
 			const res = await getIamAuthPolicies(bearer, accountId);
@@ -191,6 +190,15 @@ async function main(options) {
 				(a) => a.name === 'serviceInstance' && a.value === sourceToolchainId)
 			);
 			policyIds = policyIds.map((p) => p.id);
+		};
+
+		if (includeS2S) {
+			try {
+				collectPolicyIds();
+			} catch (e) {
+				logger.error('Something went wrong while fetching service-to-service auth policies', LOG_STAGES.setup);
+				throw e;
+			}
 		}
 
 		logger.info('Arguments and required packages verified, proceeding with copying toolchain...', LOG_STAGES.setup);
@@ -210,6 +218,8 @@ async function main(options) {
 	}
 
 	try {
+		let nonSecretRefs;
+
 		const importTerraformWrapper = async () => {
 			setTimeout(() => {
 				logger.updateSpinnerMsg('Still importing toolchain...');
@@ -218,14 +228,18 @@ async function main(options) {
 			await initProviderFile(sourceRegion, TEMP_DIR);
 			await runTerraformInit(TEMP_DIR);
 
-			await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, targetToolchainName, policyIds, TEMP_DIR, isCompact, verbosity);
+			nonSecretRefs = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, targetToolchainName, policyIds, TEMP_DIR, isCompact, verbosity);
 		};
+
 		await logger.withSpinner(
 			importTerraformWrapper,
 			'Importing toolchain...',
 			'Toolchain successfully imported',
 			LOG_STAGES.import
 		);
+
+		if (nonSecretRefs.length > 0) logger.warn(`\nWarning! The following generated terraform resource contains a hashed secret, applying without changes may result in error(s):\n${nonSecretRefs.map((entry) => `- ${entry}\n`).join('')}`, '', true);
+
 	} catch (err) {
 		if (err.message && err.stack) {
 			const errMsg = verbosity > 1 ? err.stack : err.message;

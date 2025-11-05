@@ -69,7 +69,7 @@ export async function promptUserInput(question, initialInput, validationFn) {
             break;
         } catch (e) {
             // loop
-            logger.print('Validation failed...', e.message, '\n');
+            logger.warn(`Validation failed... ${e.message}`, '', true);
 
             rl.prompt(true);
             rl.write(initialInput);

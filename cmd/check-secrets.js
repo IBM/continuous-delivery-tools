@@ -13,15 +13,15 @@ import { Command } from 'commander';
 import { parseEnvVar, decomposeCrn, isSecretReference } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { getBearerToken, getToolchainTools, getPipelineData } from './utils/requests.js';
-import { UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE } from '../config.js';
+import { SECRET_KEYS_MAP } from '../config.js';
 
 const command = new Command('check-secrets')
-  .description('Checks if you have any stored secrets in your toolchain or pipelines')
-  .requiredOption('-c, --toolchain-crn <crn>', 'The CRN of the source toolchain to check')
-  .option('-a --apikey <api key>', 'IBM Cloud IAM API key with permissions to read the toolchain.')
-  .showHelpAfterError()
-  .hook('preAction', cmd => cmd.showHelpAfterError(false)) // only show help during validation
-  .action(main);
+    .description('Checks if you have any stored secrets in your toolchain or pipelines')
+    .requiredOption('-c, --toolchain-crn <crn>', 'The CRN of the source toolchain to check')
+    .option('-a --apikey <api key>', 'IBM Cloud IAM API key with permissions to read the toolchain.')
+    .showHelpAfterError()
+    .hook('preAction', cmd => cmd.showHelpAfterError(false)) // only show help during validation
+    .action(main);
 
 async function main(options) {
     const toolchainCrn = options.toolchainCrn;
@@ -50,8 +50,9 @@ async function main(options) {
             const tool = getToolsRes.tools[i];
 
             // Check tool integrations for any plain text secret values
-            if (UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE[tool.tool_type_id]) {
-                UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE[tool.tool_type_id].forEach((updateableSecretParam) => {
+            if (SECRET_KEYS_MAP[tool.tool_type_id]) {
+                SECRET_KEYS_MAP[tool.tool_type_id].forEach((entry) => {
+                    const updateableSecretParam = entry.key;
                     if (tool.parameters[updateableSecretParam] && !isSecretReference(tool.parameters[updateableSecretParam])) {
                         toolResults.push({
                             'Tool ID': tool.id,
@@ -64,13 +65,13 @@ async function main(options) {
 
             // For tekton pipelines, check for any plain text secret properties
             if (tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'tekton') {
-                const pipelineData = await getPipelineData (token, tool.id, region);
+                const pipelineData = await getPipelineData(token, tool.id, region);
 
                 pipelineData?.properties.forEach((prop) => {
                     if (prop.type === 'secure' && !isSecretReference(prop.value)) {
                         pipelineResults.push({
                             'Pipeline ID': pipelineData.id,
-                            'Trigger Name': '-', 
+                            'Trigger Name': '-',
                             'Property Name': prop.name
                         });
                     };
@@ -81,7 +82,7 @@ async function main(options) {
                         if (prop.type === 'secure' && !isSecretReference(prop.value)) {
                             pipelineResults.push({
                                 'Pipeline ID': pipelineData.id,
-                                'Trigger Name': trigger.name, 
+                                'Trigger Name': trigger.name,
                                 'Property Name': prop.name
                             });
                         };

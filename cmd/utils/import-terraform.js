@@ -17,39 +17,12 @@ import { getPipelineData, getToolchainTools } from './requests.js';
 import { runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
 import { getRandChars, isSecretReference, normalizeName } from './utils.js';
 
-import { SECRET_KEYS_MAP } from '../../config.js';
+import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
 const writeFilePromise = promisify(fs.writeFile);
 
-// TODO: move to config
-// maps tool parameter tool_type_id to terraform resource type
-const SUPPORTED_TOOLS = {
-    "appconfig": "ibm_cd_toolchain_tool_appconfig",
-    "artifactory": "ibm_cd_toolchain_tool_artifactory",
-    "bitbucketgit": "ibm_cd_toolchain_tool_bitbucketgit",
-    "private_worker": "ibm_cd_toolchain_tool_privateworker",
-    "draservicebroker": "ibm_cd_toolchain_tool_devopsinsights",
-    "eventnotifications": "ibm_cd_toolchain_tool_eventnotifications",
-    "hostedgit": "ibm_cd_toolchain_tool_hostedgit",
-    "githubconsolidated": "ibm_cd_toolchain_tool_githubconsolidated",
-    "gitlab": "ibm_cd_toolchain_tool_gitlab",
-    "hashicorpvault": "ibm_cd_toolchain_tool_hashicorpvault",
-    "jenkins": "ibm_cd_toolchain_tool_jenkins",
-    "jira": "ibm_cd_toolchain_tool_jira",
-    "keyprotect": "ibm_cd_toolchain_tool_keyprotect",
-    "nexus": "ibm_cd_toolchain_tool_nexus",
-    "customtool": "ibm_cd_toolchain_tool_custom",
-    "saucelabs": "ibm_cd_toolchain_tool_saucelabs",
-    "secretsmanager": "ibm_cd_toolchain_tool_secretsmanager",
-    "security_compliance": "ibm_cd_toolchain_tool_securitycompliance",
-    "slack": "ibm_cd_toolchain_tool_slack",
-    "sonarqube": "ibm_cd_toolchain_tool_sonarqube",
-    "pipeline": "ibm_cd_toolchain_tool_pipeline"
-};
-
 export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, policyIds, dir, isCompact, verbosity) {
     // STEP 1/2: set up terraform file with import blocks
-    // TODO: add verbosity functionality
     const importBlocks = []; // an array of objects representing import blocks, used in importBlocksToTf
     const additionalProps = {}; // maps resource name to array of { property/param, value }, used to override terraform import
 
@@ -63,6 +36,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
         'ibm_cd_toolchain_tool_githubconsolidated'
     ];
 
+    const nonSecretRefs = [];
+
     let block = importBlock(toolchainId, toolchainName, 'ibm_cd_toolchain');
     importBlocks.push(block);
 
@@ -74,14 +49,14 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     for (const tool of allTools.tools) {
         const toolName = tool.parameters?.name ?? tool.tool_type_id;
 
-        if (tool.tool_type_id in SUPPORTED_TOOLS) {
-            block = importBlock(`${toolchainId}/${tool.id}`, toolName, SUPPORTED_TOOLS[tool.tool_type_id]);
+        if (tool.tool_type_id in SUPPORTED_TOOLS_MAP) {
+            block = importBlock(`${toolchainId}/${tool.id}`, toolName, SUPPORTED_TOOLS_MAP[tool.tool_type_id]);
             importBlocks.push(block);
 
             const toolResName = block.name;
             pipelineResName = block.name; // used below
 
-            toolIdMap[tool.id] = { type: SUPPORTED_TOOLS[tool.tool_type_id], name: toolResName };
+            toolIdMap[tool.id] = { type: SUPPORTED_TOOLS_MAP[tool.tool_type_id], name: toolResName };
 
             // overwrite hard-coded id with reference
             additionalProps[block.name] = [
@@ -98,7 +73,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     if (isSecretReference(tool.parameters[key])) {
                         additionalProps[block.name].push({ param: tfKey, value: tool.parameters[key] });
                     } else {
-                        // TODO: warn about non-secret value found
+                        nonSecretRefs.push(block.name);
                         if (required) additionalProps[block.name].push({ param: tfKey, value: `<${tfKey}>` });
                     }
                 });
@@ -181,7 +156,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     // STEP 2/2: run terraform import and post-processing
     setTerraformEnv(apiKey, verbosity);
-    await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch(() => { }); // TODO: temp fix for errors due to bugs in the provider
+    await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch(() => { }); // temp fix for errors due to bugs in the provider
 
     const generatedFile = fs.readFileSync(`${dir}/generated/draft.tf`);
     const generatedFileJson = await tfToJson('draft.tf', generatedFile.toString());
@@ -326,6 +301,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     // remove draft
     if (fs.existsSync(`${dir}/generated/draft.tf`)) fs.rmSync(`${dir}/generated/draft.tf`, { recursive: true });
+
+    return nonSecretRefs;
 }
 
 // objects have two keys, "id" and "to"
