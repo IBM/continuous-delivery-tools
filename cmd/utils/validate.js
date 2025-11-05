@@ -9,7 +9,7 @@
 
 import { execSync } from 'child_process';
 import { logger, LOG_STAGES } from './logger.js'
-import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, TERRAFORMER_REQUIRED_VERSION, UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE } from '../../config.js';
+import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, SECRET_KEYS_MAP } from '../../config.js';
 import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroup, getGritGroupProject } from './requests.js';
 import { promptUserConfirmation, promptUserInput } from './utils.js';
 
@@ -40,17 +40,6 @@ function validatePrereqsVersions() {
         throw Error(`Terraform does not meet minimum version requirement: ${TERRAFORM_REQUIRED_VERSION}`);
     }
     logger.info(`\x1b[32m✔\x1b[0m Terraform Version: ${version}`, LOG_STAGES.setup);
-
-    try {
-        stdout = execSync('terraformer version').toString();
-    } catch {
-        throw Error('Terraformer is not installed or not in PATH');
-    }
-    version = stdout.match(/\d+(\.\d+)+/)[0];
-    if (!compareVersions(version, TERRAFORMER_REQUIRED_VERSION)) {
-        throw Error(`Terraformer does not meet minimum version requirement: ${TERRAFORMER_REQUIRED_VERSION}`);
-    }
-    logger.info(`\x1b[32m✔\x1b[0m Terraformer Version: ${version}`, LOG_STAGES.setup);
 }
 
 function validateToolchainId(tcId) {
@@ -234,7 +223,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 });
             }
             else {
-                const secretsToCheck = UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE[tool.tool_type_id] || [];    // Check for secrets in the rest of the tools
+                const secretsToCheck = (SECRET_KEYS_MAP[tool.tool_type_id] || []).map((entry) => entry.key);    // Check for secrets in the rest of the tools
                 Object.entries(tool.parameters).forEach(([key, value]) => {
                     if (secretPattern.test(value) && secretsToCheck.includes(key)) secrets.push(key);
                 });
@@ -366,7 +355,7 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
                     if (isGHE) {
                         oauthLinks.push({ type: 'githubconsolidated (GHE)', link: authorizeUrl?.message });
                     } else {
-                        oauthLinks.push({ type: tool.tool_type_id, link: authorizeUrl?.message });
+                        oauthLinks.push({ type: tool.tool_type_id, link: authorizeUrl?.message ?? 'Could not get OAuth link' });
                     }
                 }
             }
@@ -381,10 +370,15 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
         logger.warn('Warning! The following git tool integration(s) are not authorized in the target region: \n', LOG_STAGES.setup, true);
         logger.table(failedTools);
 
+        let hasFailedLink = false;
+
         logger.print('Authorize using the following links: \n');
         oauthLinks.forEach((o) => {
+            if (o.link === 'Could not get OAuth link') hasFailedLink = true;
             logger.print(`${o.type}: \x1b[36m${o.link}\x1b[0m\n`);
         });
+
+        if (hasFailedLink) logger.print(`Please manually verify failed authorization(s): https://cloud.ibm.com/devops/git?env_id=ibm:yp:${targetRegion}\n`);
 
         if (!skipPrompt) await promptUserConfirmation('Caution: The above git tool integration(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
     }

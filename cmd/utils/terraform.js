@@ -17,7 +17,7 @@ import { jsonToTf } from 'json-to-tf';
 
 import { validateToolchainId, validateGritUrl } from './validate.js';
 import { logger, LOG_STAGES } from './logger.js';
-import { promptUserInput, replaceUrlRegion } from './utils.js';
+import { getRandChars, promptUserInput, replaceUrlRegion } from './utils.js';
 
 // promisify
 const readFilePromise = promisify(fs.readFile);
@@ -34,15 +34,9 @@ async function execPromise(command, options) {
     }
 }
 
-function setTerraformerEnv(apiKey, tcId, includeS2S) {
-    process.env['IC_API_KEY'] = apiKey;
-    process.env['IBM_CD_TOOLCHAIN_TARGET'] = tcId;
-    if (includeS2S) process.env['IBM_CD_TOOLCHAIN_INCLUDE_S2S'] = 1;
-}
-
-function setTerraformEnv(verbosity) {
+function setTerraformEnv(apiKey, verbosity) {
     if (verbosity >= 2) process.env['TF_LOG'] = 'DEBUG';
-    process.env['TF_VAR_ibmcloud_api_key'] = process.env.IC_API_KEY;
+    process.env['TF_VAR_ibmcloud_api_key'] = apiKey;
 }
 
 async function initProviderFile(targetRegion, dir) {
@@ -54,13 +48,7 @@ async function initProviderFile(targetRegion, dir) {
 
     const newProviderTfStr = JSON.stringify(newProviderTf)
 
-    return writeFilePromise(`${dir}/provider.tf`, jsonToTf(newProviderTfStr), () => { });
-}
-
-async function runTerraformerImport(srcRegion, tempDir, isCompact, verbosity) {
-    const stdout = await execPromise(`terraformer import ibm --resources=ibm_cd_toolchain --region=${srcRegion} -S ${isCompact ? '--compact' : ''} ${verbosity >= 2 ? '--verbose' : ''}`, { cwd: tempDir });
-    if (verbosity >= 2) logger.print(stdout);
-    return stdout;
+    return writeFilePromise(`${dir}/provider.tf`, jsonToTf(newProviderTfStr));
 }
 
 async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, targetToolchainName, targetRgId, disableTriggers, isCompact, outputDir, tempDir, moreTfResources, gritMapping, skipUserConfirmation }) {
@@ -71,7 +59,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
 
     // Get toolchain resource
     const toolchainLocation = isCompact ? 'resources.tf' : 'cd_toolchain.tf'
-    const resources = await readFilePromise(`${tempDir}/generated/ibm/ibm_cd_toolchain/${toolchainLocation}`, 'utf8');
+    const resources = await readFilePromise(`${tempDir}/generated/${toolchainLocation}`, 'utf8');
     const resourcesObj = await tfToJson('output.tf', resources);
     const newTcId = Object.keys(resourcesObj['resource']['ibm_cd_toolchain'])[0];
 
@@ -84,7 +72,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
     promises.push(writeOutputPromise);
 
     // Copy over cd_*.tf
-    let files = await readDirPromise(`${tempDir}/generated/ibm/ibm_cd_toolchain`);
+    let files = await readDirPromise(`${tempDir}/generated`);
 
     if (isCompact) {
         files = files.filter((f) => f === 'resources.tf');
@@ -108,17 +96,6 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
     const newConvertedTf = {};
 
     if (hasGHE) {
-        const getRandChars = (size) => {
-            const charSet = 'abcdefghijklmnopqrstuvwxyz0123456789';
-            let res = '';
-
-            for (let i = 0; i < size; i++) {
-                const pos = randomInt(charSet.length);
-                res += charSet[pos];
-            }
-            return res;
-        };
-
         moreTfResources['github_integrated'].forEach(t => {
             const gitUrl = t['parameters']['repo_url'];
             const tfName = `converted--githubconsolidated_${getRandChars(4)}`;
@@ -146,7 +123,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
     }
 
     for (const fileName of files) {
-        const tfFile = await readFilePromise(`${tempDir}/generated/ibm/ibm_cd_toolchain/${fileName}`, 'utf8');
+        const tfFile = await readFilePromise(`${tempDir}/generated/${fileName}`, 'utf8');
         const tfFileObj = await tfToJson(fileName, tfFile);
 
         const newTfFileObj = { 'resource': {} }
@@ -203,7 +180,6 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
                             newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['initialization'][0]['repo_url'] = newUrl;
                             attemptAddUsedGritUrl(newUrl);
                             gritMapping[thisUrl] = newUrl;
-                            logger.print('\n');
                         }
                     }
                     catch (e) {
@@ -333,6 +309,10 @@ async function runTerraformInit(dir, verbosity) {
     return out;
 }
 
+async function runTerraformPlanGenerate(dir, fileName) {
+    return await execPromise(`terraform plan -generate-config-out=${fileName}`, { cwd: dir });
+}
+
 // primarily used to get number of resources to be used
 async function getNumResourcesPlanned(dir) {
     const planOutput = await execPromise('terraform plan -json', { cwd: dir });
@@ -432,12 +412,11 @@ function replaceDependsOn(str) {
 }
 
 export {
-    setTerraformerEnv,
     setTerraformEnv,
     initProviderFile,
-    runTerraformerImport,
     setupTerraformFiles,
     runTerraformInit,
+    runTerraformPlanGenerate,
     getNumResourcesPlanned,
     runTerraformApply,
     getNewToolchainId,

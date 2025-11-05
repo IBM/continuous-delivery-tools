@@ -44,15 +44,6 @@ describe('copy-toolchain: Test functionalities', function () {
             }
         },
         {
-            name: 'Terraformer Version Verification',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
-            expected: /✔ Terraformer Version:/,
-            options: {
-                exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
-                timeout: 5000
-            }
-        },
-        {
             name: 'Log file is created successfully',
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
             expected: null,
