@@ -51,8 +51,6 @@ const TARGET_REGIONS = [
 
 const TERRAFORM_REQUIRED_VERSION = '1.13.3';
 
-const TERRAFORMER_REQUIRED_VERSION = '0.8.30';
-
 // see https://docs.gitlab.com/user/reserved_names/
 const RESERVED_GRIT_PROJECT_NAMES = [
 	'\\-',
@@ -122,64 +120,96 @@ const RESERVED_GRIT_GROUP_NAMES = [
 
 const RESERVED_GRIT_SUBGROUP_NAME = '\\-';
 
-const UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE = {
+/* 
+Format:
+	Maps tool_type_id to a list of the following ...
+	{ 
+		key: str, // tool parameter key
+		tfKey?: str, // terraform-equivalent key
+		prereq?: { key: string, values: [string] }, // proceed only if tool parameter "prereq.key" is one of "values"
+		required?: bool // is this key required for terraform?
+	}
+	... which represents a secret/sensitive value
+*/
+const SECRET_KEYS_MAP = {
 	"artifactory": [
-		"token"
+		{ key: "token", tfKey: "token" }
 	],
 	"cloudobjectstorage": [
-		"cos_api_key",
-		"hmac_access_key_id",
-		"hmac_secret_access_key"
+		{ key: "cos_api_key", tfKey: "cos_api_key", prereq: { key: "auth_type", values: ["apikey"] } },
+		{ key: "hmac_access_key_id", tfKey: "hmac_access_key_id", prereq: { key: "auth_type", values: ["hmac"] } },
+		{ key: "hmac_secret_access_key", tfKey: "hmac_secret_access_key", prereq: { key: "auth_type", values: ["hmac"] } },
 	],
 	"github_integrated": [
-		"api_token"
+		{ key: "api_token" } // no terraform equivalent
 	],
 	"githubconsolidated": [
-		"api_token"
+		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
 	],
 	"gitlab": [
-		"api_token"
+		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
 	],
 	"hashicorpvault": [
-		"token",
-		"role_id",
-		"secret_id",
-		"password"
+		{ key: "token", tfKey: "token", prereq: { key: "authentication_method", values: ["github", "token"] } },
+		{ key: "role_id", tfKey: "role_id", prereq: { key: "authentication_method", values: ["approle"] } },
+		{ key: "secret_id", tfKey: "secret_id", prereq: { key: "authentication_method", values: ["approle"] } },
+		{ key: "password", tfKey: "password", prereq: { key: "authentication_method", values: ["userpass"] } },
 	],
 	"hostedgit": [
-		"api_token"
+		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
 	],
 	"jenkins": [
-		"api_token"
+		{ key: "api_token", tfKey: "api_token" },
 	],
 	"jira": [
-		"password",
-		"api_token"
+		{ key: "password", tfKey: "api_token" },
 	],
 	"nexus": [
-		"token"
+		{ key: "token", tfKey: "token" },
 	],
 	"pagerduty": [
-		"service_key"
+		{ key: "service_key", tfKey: "service_key", required: true },
 	],
 	"private_worker": [
-		"workerQueueCredentials",
-		"worker_queue_credentials"
+		{ key: "workerQueueCredentials", tfKey: "worker_queue_credentials", required: true },
 	],
 	"saucelabs": [
-		"key",
-		"access_key"
+		{ key: "key", tfKey: "access_key", required: true },
 	],
 	"security_compliance": [
-		"scc_api_key"
+		{ key: "scc_api_key", tfKey: "scc_api_key", prereq: { key: "use_profile_attachment", values: ["enabled"] } },
 	],
 	"slack": [
-		"api_token",
-		"webhook"
+		{ key: "api_token", tfKey: "webhook", required: true },
 	],
 	"sonarqube": [
-		"user_password"
+		{ key: "user_password", tfKey: "user_password" },
 	]
+};
+
+// maps tool parameter tool_type_id to terraform resource type
+const SUPPORTED_TOOLS_MAP = {
+	"appconfig": "ibm_cd_toolchain_tool_appconfig",
+	"artifactory": "ibm_cd_toolchain_tool_artifactory",
+	"bitbucketgit": "ibm_cd_toolchain_tool_bitbucketgit",
+	"private_worker": "ibm_cd_toolchain_tool_privateworker",
+	"draservicebroker": "ibm_cd_toolchain_tool_devopsinsights",
+	"eventnotifications": "ibm_cd_toolchain_tool_eventnotifications",
+	"hostedgit": "ibm_cd_toolchain_tool_hostedgit",
+	"githubconsolidated": "ibm_cd_toolchain_tool_githubconsolidated",
+	"gitlab": "ibm_cd_toolchain_tool_gitlab",
+	"hashicorpvault": "ibm_cd_toolchain_tool_hashicorpvault",
+	"jenkins": "ibm_cd_toolchain_tool_jenkins",
+	"jira": "ibm_cd_toolchain_tool_jira",
+	"keyprotect": "ibm_cd_toolchain_tool_keyprotect",
+	"nexus": "ibm_cd_toolchain_tool_nexus",
+	"customtool": "ibm_cd_toolchain_tool_custom",
+	"saucelabs": "ibm_cd_toolchain_tool_saucelabs",
+	"secretsmanager": "ibm_cd_toolchain_tool_secretsmanager",
+	"security_compliance": "ibm_cd_toolchain_tool_securitycompliance",
+	"slack": "ibm_cd_toolchain_tool_slack",
+	"sonarqube": "ibm_cd_toolchain_tool_sonarqube",
+	"pipeline": "ibm_cd_toolchain_tool_pipeline"
 };
 
 const VAULT_REGEX = [
@@ -190,14 +220,14 @@ const VAULT_REGEX = [
 
 export {
 	COPY_TOOLCHAIN_DESC,
-	UPDATEABLE_SECRET_PROPERTIES_BY_TOOL_TYPE,
 	MIGRATION_DOC_URL,
 	SOURCE_REGIONS,
 	TARGET_REGIONS,
 	TERRAFORM_REQUIRED_VERSION,
-	TERRAFORMER_REQUIRED_VERSION,
 	RESERVED_GRIT_PROJECT_NAMES,
 	RESERVED_GRIT_GROUP_NAMES,
 	RESERVED_GRIT_SUBGROUP_NAME,
+	SECRET_KEYS_MAP,
+	SUPPORTED_TOOLS_MAP,
 	VAULT_REGEX
 };

@@ -170,7 +170,7 @@ export const logger = new Logger();
 
 export const LOG_STAGES = {
     setup: 'setup',
-    terraformer: 'terraformer',
+    import: 'import',
     tf: 'terraform',
     info: 'info'
 };
