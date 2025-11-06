@@ -13,6 +13,7 @@ import path from "path";
 import child_process from 'child_process';
 import stripAnsi from 'strip-ansi';
 import pty from 'node-pty';
+import { parse as tfToJson } from '@cdktf/hcl2json'
 import nconf from 'nconf';
 import { expect, assert } from 'chai';
 
@@ -40,6 +41,20 @@ function parseTcIdAndRegion(output) {
     } else {
         return null;
     }
+}
+
+function searchDirectory(currentPath) {
+    const foundFiles = [];
+    const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+    for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name);
+        if (entry.isDirectory()) {
+            foundFiles.push(...searchDirectory(fullPath));
+        } else {
+            foundFiles.push(path.join(currentPath, entry.name));
+        }
+    }
+    return foundFiles;
 }
 
 export async function execCommand(fullCommand, options) {
@@ -150,11 +165,12 @@ export async function assertExecError(fullCommand, expectedMessage, options, ass
     } catch (e) {
         logger.dump(e.message);
         if (assertionFn) {
-            assertionFn(e.message);
+            const res = assertionFn(e.message);
+            if (res instanceof Promise) await res;
         } else if (expectedMessage) {
             expect(e.message).to.match(expectedMessage);
         } else {
-            assert.fail(0, 1, 'No assertion function or expected message provided.');
+            assert.fail('No assertion function or expected message provided.');
         }
     }
 }
@@ -164,11 +180,12 @@ export async function assertPtyOutput(fullCommand, expectedMessage, options, ass
         const output = await runPtyProcess(fullCommand, options);
         logger.dump(output);
         if (assertionFn) {
-            assertionFn(output);
+            const res = assertionFn(output);
+            if (res instanceof Promise) await res;
         } else if (expectedMessage) {
             expect(output).to.match(expectedMessage);
         } else {
-            assert.fail(0, 1, 'No assertion function or expected message provided.');
+            assert.fail('No assertion function or expected message provided.');
         }
         return parseTcIdAndRegion(output);
     } catch (e) {
@@ -178,21 +195,7 @@ export async function assertPtyOutput(fullCommand, expectedMessage, options, ass
 }
 
 export function areFilesInDir(dirPath, filePatterns) {
-    const foundFiles = [];
-
-    function searchDirectory(currentPath) {
-        const entries = fs.readdirSync(currentPath, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(currentPath, entry.name);
-            if (entry.isDirectory()) {
-                searchDirectory(fullPath);
-            } else {
-                foundFiles.push(entry.name);
-            }
-        }
-    }
-
-    searchDirectory(dirPath);
+    const foundFiles = searchDirectory(dirPath);
     for (const pattern of filePatterns) {
         const regex = new RegExp(pattern);
         if (!foundFiles.some(file => regex.test(file))) {
@@ -200,4 +203,37 @@ export function areFilesInDir(dirPath, filePatterns) {
         }
     }
     return true;
+}
+
+export async function assertTfResourcesInDir(dirPath, expectedResourcesMap) {
+    const resourceCounter = {};
+
+    const foundFiles = searchDirectory(dirPath);
+    const allResources = [];
+    for (const file of foundFiles) {
+        if (!file.endsWith('.tf')) continue;
+        const fileName = path.basename(file);
+        const tfFile = fs.readFileSync(file, 'utf8');
+        const tfFileObject = await tfToJson(fileName, tfFile);
+        if (tfFileObject.resource) allResources.push(tfFileObject.resource);
+    }
+
+    for (const resourceMap of allResources) {
+        for (const resourceType of Object.keys(resourceMap)) {
+            resourceCounter[resourceType] = (resourceCounter[resourceType] || 0) + 1;
+        }
+    }
+    // Check if all expected resources are present
+    for (const [resourceType, expectedCount] of Object.entries(expectedResourcesMap)) {
+        if (resourceCounter[resourceType] !== expectedCount) {
+            assert.fail(`Expected ${expectedCount} ${resourceType} resource(s) but found ${resourceCounter[resourceType] || 0}`);
+        }
+    }
+    // Check if there are unexpected resources
+    for (const [resourceType, count] of Object.entries(resourceCounter)) {
+        if (!(resourceType in expectedResourcesMap)) {
+            assert.fail(`Unexpected ${resourceType} resource found. (Count: ${count})`);
+        }
+    }
+    assert.ok(true, 'Directory contains all expected resources');
 }

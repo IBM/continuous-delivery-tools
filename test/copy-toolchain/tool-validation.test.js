@@ -31,7 +31,7 @@ after(async () => await deleteCreatedToolchains(toolchainsToDelete));
 
 describe('copy-toolchain: Test tool validation', function () {
     this.timeout('120s');
-    this.command = 'copy-toolchain';
+    this.command = COMMAND;
     const testCases = [
         {
             name: 'Misconfigured tool identified',

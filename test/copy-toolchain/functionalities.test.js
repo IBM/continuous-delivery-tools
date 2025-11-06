@@ -32,7 +32,7 @@ after(async () => await deleteCreatedToolchains(toolchainsToDelete));
 
 describe('copy-toolchain: Test functionalities', function () {
     this.timeout('240s');
-    this.command = 'copy-toolchain';
+    this.command = COMMAND;
     const testCases = [
         {
             name: 'Terraform Version Verification',
@@ -115,6 +115,40 @@ describe('copy-toolchain: Test functionalities', function () {
 
                 expect(output).to.not.match(/\[DEBUG\]/);
                 expect(output).to.not.match(/\[LOG\]/);
+            }
+        },
+        {
+            name: 'Compact flag only generates one terraform file',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['single-pl'].crn, '-r', TEST_TOOLCHAINS['single-pl'].region, '-D', '-f', '-C'],
+            expected: null,
+            options: {
+                timeout: 60000,
+                cwd: TEMP_DIR + '/' + 'compact-flag-only-generates-one-tf-file'
+            },
+            assertionFunc: () => {
+                // check only resources.tf is created
+                assert.isFalse(
+                    areFilesInDir(TEMP_DIR + '/' + 'compact-flag-only-generates-one-tf-file', [
+                        'cd_toolchain.tf',
+                        'cd_toolchain_tool_pipeline.tf',
+                        'cd_tekton_pipeline.tf',
+                    ])
+                );
+                assert.isTrue(areFilesInDir(TEMP_DIR + '/' + 'compact-flag-only-generates-one-tf-file', ['resources.tf']));
+            }
+        },
+        {
+            name: 'Prompt user when OAuth does not exist for Git tool in target region',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['single-pl'].crn, '-r', TEST_TOOLCHAINS['single-pl'].region, '-D'],
+            expected: /Warning! The following git tool integration\(s\) are not authorized in the target region/,
+            options: {
+                timeout: 60000,
+                questionAnswerMap: {
+                    '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
+                    [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['single-pl'].name}] (Ctrl-C to abort):`]: '',
+                    'Only \'yes\' will be accepted to proceed. (Ctrl-C to abort)': 'yes'
+                },
+                cwd: TEMP_DIR + '/' + 'compact-flag-only-generates-one-tf-file'
             }
         }
     ];

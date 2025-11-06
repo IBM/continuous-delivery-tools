@@ -32,7 +32,7 @@ const COMMAND = 'copy-toolchain';
 
 describe('copy-toolchain: Test user input handling', function () {
     this.timeout('60s');
-    this.command = 'copy-toolchain';
+    this.command = COMMAND;
 
     const validCrn = TEST_TOOLCHAINS['empty'].crn;
     const invalidArgsCases = [
@@ -96,6 +96,7 @@ describe('copy-toolchain: Test user input handling', function () {
     ];
 
     for (const { name, cmd, expected, options, assertionFn } of invalidArgsCases) {
+        if (VERBOSE_MODE) cmd.push('-v');
         it(`Invalid args: ${name}`, async () => {
             await assertExecError(cmd, expected, options, assertionFn);
         });
@@ -109,8 +110,11 @@ describe('copy-toolchain: Test user input handling', function () {
         if (!fs.existsSync(gritTestDir)) fs.mkdirSync(gritTestDir, { recursive: true });
         fs.writeFileSync(gritMappingFilePath, JSON.stringify(mocks.invalidGritMapping, null, 2));
 
+        const cmd = [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-G', mocks.invalidGritFileName];
+        if (VERBOSE_MODE) cmd.push('-v');
+
         await assertExecError(
-            [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-G', mocks.invalidGritFileName],
+            cmd,
             null,
             { cwd: gritTestDir },
             (err) => {
@@ -140,7 +144,7 @@ describe('copy-toolchain: Test user input handling', function () {
                 exitCondition: 'Validation failed',
                 timeout: 5000
             }
-        },
+        }
     ];
 
     for (const { name, cmd, expected, options } of invalidUserInputCases) {
