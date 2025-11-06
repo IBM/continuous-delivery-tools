@@ -296,7 +296,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
         }
     } else {
         const generatedFileNew = jsonToTf(JSON.stringify(newTfFileObj));
-        fs.writeFileSync(`${dir}/generated/generated.tf`, generatedFileNew);
+        fs.writeFileSync(`${dir}/generated/resources.tf`, generatedFileNew);
     }
 
     // remove draft
