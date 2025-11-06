@@ -372,7 +372,7 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
 
         let hasFailedLink = false;
 
-        logger.print('Authorize using the following links: \n');
+        if (oauthLinks.length > 0) logger.print('Authorize using the following links:\n');
         oauthLinks.forEach((o) => {
             if (o.link === 'Could not get OAuth link') hasFailedLink = true;
             logger.print(`${o.type}: \x1b[36m${o.link}\x1b[0m\n`);
