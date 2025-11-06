@@ -8,8 +8,8 @@
  */
 
 import { promisify } from 'util';
-import fs from "fs";
-import path from "path";
+import fs from 'fs';
+import path from 'path';
 import child_process from 'child_process';
 import stripAnsi from 'strip-ansi';
 import pty from 'node-pty';

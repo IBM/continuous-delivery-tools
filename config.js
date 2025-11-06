@@ -126,90 +126,90 @@ Format:
 	{ 
 		key: str, // tool parameter key
 		tfKey?: str, // terraform-equivalent key
-		prereq?: { key: string, values: [string] }, // proceed only if tool parameter "prereq.key" is one of "values"
+		prereq?: { key: string, values: [string] }, // proceed only if tool parameter 'prereq.key' is one of 'values'
 		required?: bool // is this key required for terraform?
 	}
 	... which represents a secret/sensitive value
 */
 const SECRET_KEYS_MAP = {
-	"artifactory": [
-		{ key: "token", tfKey: "token" }
+	'artifactory': [
+		{ key: 'token', tfKey: 'token' }
 	],
-	"cloudobjectstorage": [
-		{ key: "cos_api_key", tfKey: "cos_api_key", prereq: { key: "auth_type", values: ["apikey"] } },
-		{ key: "hmac_access_key_id", tfKey: "hmac_access_key_id", prereq: { key: "auth_type", values: ["hmac"] } },
-		{ key: "hmac_secret_access_key", tfKey: "hmac_secret_access_key", prereq: { key: "auth_type", values: ["hmac"] } },
+	'cloudobjectstorage': [
+		{ key: 'cos_api_key', tfKey: 'cos_api_key', prereq: { key: 'auth_type', values: ['apikey'] } },
+		{ key: 'hmac_access_key_id', tfKey: 'hmac_access_key_id', prereq: { key: 'auth_type', values: ['hmac'] } },
+		{ key: 'hmac_secret_access_key', tfKey: 'hmac_secret_access_key', prereq: { key: 'auth_type', values: ['hmac'] } },
 	],
-	"github_integrated": [
-		{ key: "api_token" } // no terraform equivalent
+	'github_integrated': [
+		{ key: 'api_token' } // no terraform equivalent
 	],
-	"githubconsolidated": [
-		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
+	'githubconsolidated': [
+		{ key: 'api_token', tfKey: 'api_token', prereq: { key: 'auth_type', values: ['pat'] } },
 	],
-	"gitlab": [
-		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
+	'gitlab': [
+		{ key: 'api_token', tfKey: 'api_token', prereq: { key: 'auth_type', values: ['pat'] } },
 	],
-	"hashicorpvault": [
-		{ key: "token", tfKey: "token", prereq: { key: "authentication_method", values: ["github", "token"] } },
-		{ key: "role_id", tfKey: "role_id", prereq: { key: "authentication_method", values: ["approle"] } },
-		{ key: "secret_id", tfKey: "secret_id", prereq: { key: "authentication_method", values: ["approle"] } },
-		{ key: "password", tfKey: "password", prereq: { key: "authentication_method", values: ["userpass"] } },
+	'hashicorpvault': [
+		{ key: 'token', tfKey: 'token', prereq: { key: 'authentication_method', values: ['github', 'token'] } },
+		{ key: 'role_id', tfKey: 'role_id', prereq: { key: 'authentication_method', values: ['approle'] } },
+		{ key: 'secret_id', tfKey: 'secret_id', prereq: { key: 'authentication_method', values: ['approle'] } },
+		{ key: 'password', tfKey: 'password', prereq: { key: 'authentication_method', values: ['userpass'] } },
 	],
-	"hostedgit": [
-		{ key: "api_token", tfKey: "api_token", prereq: { key: "auth_type", values: ["pat"] } },
+	'hostedgit': [
+		{ key: 'api_token', tfKey: 'api_token', prereq: { key: 'auth_type', values: ['pat'] } },
 	],
-	"jenkins": [
-		{ key: "api_token", tfKey: "api_token" },
+	'jenkins': [
+		{ key: 'api_token', tfKey: 'api_token' },
 	],
-	"jira": [
-		{ key: "password", tfKey: "api_token" },
+	'jira': [
+		{ key: 'password', tfKey: 'api_token' },
 	],
-	"nexus": [
-		{ key: "token", tfKey: "token" },
+	'nexus': [
+		{ key: 'token', tfKey: 'token' },
 	],
-	"pagerduty": [
-		{ key: "service_key", tfKey: "service_key", required: true },
+	'pagerduty': [
+		{ key: 'service_key', tfKey: 'service_key', required: true },
 	],
-	"private_worker": [
-		{ key: "workerQueueCredentials", tfKey: "worker_queue_credentials", required: true },
+	'private_worker': [
+		{ key: 'workerQueueCredentials', tfKey: 'worker_queue_credentials', required: true },
 	],
-	"saucelabs": [
-		{ key: "key", tfKey: "access_key", required: true },
+	'saucelabs': [
+		{ key: 'key', tfKey: 'access_key', required: true },
 	],
-	"security_compliance": [
-		{ key: "scc_api_key", tfKey: "scc_api_key", prereq: { key: "use_profile_attachment", values: ["enabled"] } },
+	'security_compliance': [
+		{ key: 'scc_api_key', tfKey: 'scc_api_key', prereq: { key: 'use_profile_attachment', values: ['enabled'] } },
 	],
-	"slack": [
-		{ key: "api_token", tfKey: "webhook", required: true },
+	'slack': [
+		{ key: 'api_token', tfKey: 'webhook', required: true },
 	],
-	"sonarqube": [
-		{ key: "user_password", tfKey: "user_password" },
+	'sonarqube': [
+		{ key: 'user_password', tfKey: 'user_password' },
 	]
 };
 
 // maps tool parameter tool_type_id to terraform resource type
 const SUPPORTED_TOOLS_MAP = {
-	"appconfig": "ibm_cd_toolchain_tool_appconfig",
-	"artifactory": "ibm_cd_toolchain_tool_artifactory",
-	"bitbucketgit": "ibm_cd_toolchain_tool_bitbucketgit",
-	"private_worker": "ibm_cd_toolchain_tool_privateworker",
-	"draservicebroker": "ibm_cd_toolchain_tool_devopsinsights",
-	"eventnotifications": "ibm_cd_toolchain_tool_eventnotifications",
-	"hostedgit": "ibm_cd_toolchain_tool_hostedgit",
-	"githubconsolidated": "ibm_cd_toolchain_tool_githubconsolidated",
-	"gitlab": "ibm_cd_toolchain_tool_gitlab",
-	"hashicorpvault": "ibm_cd_toolchain_tool_hashicorpvault",
-	"jenkins": "ibm_cd_toolchain_tool_jenkins",
-	"jira": "ibm_cd_toolchain_tool_jira",
-	"keyprotect": "ibm_cd_toolchain_tool_keyprotect",
-	"nexus": "ibm_cd_toolchain_tool_nexus",
-	"customtool": "ibm_cd_toolchain_tool_custom",
-	"saucelabs": "ibm_cd_toolchain_tool_saucelabs",
-	"secretsmanager": "ibm_cd_toolchain_tool_secretsmanager",
-	"security_compliance": "ibm_cd_toolchain_tool_securitycompliance",
-	"slack": "ibm_cd_toolchain_tool_slack",
-	"sonarqube": "ibm_cd_toolchain_tool_sonarqube",
-	"pipeline": "ibm_cd_toolchain_tool_pipeline"
+	'appconfig': 'ibm_cd_toolchain_tool_appconfig',
+	'artifactory': 'ibm_cd_toolchain_tool_artifactory',
+	'bitbucketgit': 'ibm_cd_toolchain_tool_bitbucketgit',
+	'private_worker': 'ibm_cd_toolchain_tool_privateworker',
+	'draservicebroker': 'ibm_cd_toolchain_tool_devopsinsights',
+	'eventnotifications': 'ibm_cd_toolchain_tool_eventnotifications',
+	'hostedgit': 'ibm_cd_toolchain_tool_hostedgit',
+	'githubconsolidated': 'ibm_cd_toolchain_tool_githubconsolidated',
+	'gitlab': 'ibm_cd_toolchain_tool_gitlab',
+	'hashicorpvault': 'ibm_cd_toolchain_tool_hashicorpvault',
+	'jenkins': 'ibm_cd_toolchain_tool_jenkins',
+	'jira': 'ibm_cd_toolchain_tool_jira',
+	'keyprotect': 'ibm_cd_toolchain_tool_keyprotect',
+	'nexus': 'ibm_cd_toolchain_tool_nexus',
+	'customtool': 'ibm_cd_toolchain_tool_custom',
+	'saucelabs': 'ibm_cd_toolchain_tool_saucelabs',
+	'secretsmanager': 'ibm_cd_toolchain_tool_secretsmanager',
+	'security_compliance': 'ibm_cd_toolchain_tool_securitycompliance',
+	'slack': 'ibm_cd_toolchain_tool_slack',
+	'sonarqube': 'ibm_cd_toolchain_tool_sonarqube',
+	'pipeline': 'ibm_cd_toolchain_tool_pipeline'
 };
 
 const VAULT_REGEX = [

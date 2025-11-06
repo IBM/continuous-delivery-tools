@@ -12,11 +12,9 @@ import nconf from 'nconf';
 
 import * as chai from 'chai';
 chai.config.truncateThreshold = 0;
-import { expect, assert } from 'chai';
 
 import { assertTfResourcesInDir, assertPtyOutput } from '../utils/testUtils.js';
 import { TEST_TOOLCHAINS } from '../data/test-toolchains.js';
-import { TARGET_REGIONS } from '../../config.js';
 
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');

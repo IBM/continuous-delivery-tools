@@ -20,11 +20,11 @@ const invalidRgId = 'invalid#RgId';
 const invalidRgName = 'invalid#Rg@Name';
 
 const invalidGritMapping = {
-    "ca-tor.git.cloud.ibm.com/fake-user/fake-repo": "eu-gb.git.cloud.ibm.com/fake-user/fake-repo",
-    "ibm.com/fake-user/fake-repo": "ibm.com/fake-user/fake-repo"
+    'ca-tor.git.cloud.ibm.com/fake-user/fake-repo': 'eu-gb.git.cloud.ibm.com/fake-user/fake-repo',
+    'ibm.com/fake-user/fake-repo': 'ibm.com/fake-user/fake-repo'
 };
 
-const invalidGritFileName = "invalid-mapping.json";
+const invalidGritFileName = 'invalid-mapping.json';
 
 export default {
     invalidCrn,
