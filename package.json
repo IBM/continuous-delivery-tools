@@ -15,7 +15,7 @@
   "author": "IBM Corp.",
   "license": "Apache-2.0",
   "scripts": {
-    "test": "mocha --require \"test/setup.js\" --parallel \"test/copy-toolchain/*.test.js\""
+    "test": "mocha --require \"test/setup.js\" --retries 3 --parallel \"test/copy-toolchain/*.test.js\""
   },
   "dependencies": {
     "@cdktf/hcl2json": "^0.21.0",

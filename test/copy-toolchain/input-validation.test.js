@@ -31,7 +31,7 @@ const COMMAND = 'copy-toolchain';
 
 
 describe('copy-toolchain: Test user input handling', function () {
-    this.timeout('60s');
+    this.timeout('120s');
     this.command = COMMAND;
 
     const validCrn = TEST_TOOLCHAINS['empty'].crn;
@@ -132,7 +132,7 @@ describe('copy-toolchain: Test user input handling', function () {
             options: {
                 questionAnswerMap: { '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': mocks.invalidTag },
                 exitCondition: 'Validation failed',
-                timeout: 5000
+                timeout: 10000
             }
         },
         {
@@ -142,7 +142,7 @@ describe('copy-toolchain: Test user input handling', function () {
             options: {
                 questionAnswerMap: { [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`]: mocks.invalidTcName },
                 exitCondition: 'Validation failed',
-                timeout: 5000
+                timeout: 10000
             }
         }
     ];

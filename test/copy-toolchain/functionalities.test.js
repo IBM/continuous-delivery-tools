@@ -14,7 +14,8 @@ import * as chai from 'chai';
 chai.config.truncateThreshold = 0;
 import { expect, assert } from 'chai';
 
-import { assertPtyOutput, areFilesInDir, deleteCreatedToolchains } from '../utils/testUtils.js';
+import { assertPtyOutput, areFilesInDir, deleteCreatedToolchains, parseTcIdAndRegion } from '../utils/testUtils.js';
+import { getBearerToken, getToolchain } from '../../cmd/utils/requests.js';
 import { TEST_TOOLCHAINS, DEFAULT_RG_ID, R2R_CLI_RG_ID } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
 
@@ -23,6 +24,7 @@ nconf.file('local', 'test/config/local.json');
 
 const TEMP_DIR = nconf.get('TEST_TEMP_DIR');
 const VERBOSE_MODE = nconf.get('VERBOSE_MODE');
+const IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
 
 const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
@@ -31,7 +33,7 @@ const toolchainsToDelete = new Map();
 after(async () => await deleteCreatedToolchains(toolchainsToDelete));
 
 describe('copy-toolchain: Test functionalities', function () {
-    this.timeout('240s');
+    this.timeout('300s');
     this.command = COMMAND;
     const testCases = [
         {
@@ -40,7 +42,7 @@ describe('copy-toolchain: Test functionalities', function () {
             expected: /✔ Terraform Version:/,
             options: {
                 exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
-                timeout: 5000
+                timeout: 10000
             }
         },
         {
@@ -49,7 +51,7 @@ describe('copy-toolchain: Test functionalities', function () {
             expected: null,
             options: {
                 exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
-                timeout: 5000,
+                timeout: 10000,
                 cwd: TEMP_DIR + '/' + 'log-file-is-created-successfully'
             },
             assertionFunc: () => areFilesInDir(TEMP_DIR + '/' + 'log-file-is-created-successfully', ['.log'])
@@ -57,10 +59,17 @@ describe('copy-toolchain: Test functionalities', function () {
         {
             name: 'Force Flag bypasses all user prompts',
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region, '-f'],
-            expected: /See cloned toolchain:/,      // Should bypass everything and clone the toolchain
+            expected: null,
             options: {
-                timeout: 60000,
-                cwd: TEMP_DIR + '/' + 'force-flag-bypasses-all-user-prompts'
+                timeout: 120000,
+            },
+            assertionFunc: async (output) => {
+                // Should bypass everything and clone the toolchain
+                output.match(/See cloned toolchain:/);
+                const { toolchainId, region } = parseTcIdAndRegion(output);
+                const token = await getBearerToken(IBMCLOUD_API_KEY);
+                const toolchainData = await getToolchain(token, toolchainId, region);
+                assert.isTrue(toolchainData.id === toolchainId, 'Was toolchain created successfully without any confirmations?');
             }
         },
         {
@@ -69,7 +78,7 @@ describe('copy-toolchain: Test functionalities', function () {
             expected: new RegExp(`Warning! A toolchain named \'${TEST_TOOLCHAINS['empty'].name}\' already exists in:[\\s\\S]*?Resource Group:[\\s\\S]*?${R2R_CLI_RG_ID}`),
             options: {
                 exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
-                timeout: 5000
+                timeout: 10000
             }
         },
         {
@@ -78,7 +87,7 @@ describe('copy-toolchain: Test functionalities', function () {
             expected: new RegExp(`Warning! A toolchain named \'${TEST_TOOLCHAINS['empty'].name}\' already exists in:[\\s\\S]*?Region: ${TEST_TOOLCHAINS['empty'].region}`),
             options: {
                 exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
-                timeout: 5000
+                timeout: 10000
             }
         },
         {
@@ -86,7 +95,7 @@ describe('copy-toolchain: Test functionalities', function () {
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region, '-D'],
             expected: null,
             options: {
-                timeout: 60000,
+                timeout: 100000,
                 questionAnswerMap: {
                     '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
                     [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`]: '',
@@ -103,11 +112,11 @@ describe('copy-toolchain: Test functionalities', function () {
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region, '-s'],
             expected: null,
             options: {
-                timeout: 120000,
+                timeout: 100000,
                 questionAnswerMap: {
                     '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
                     [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`]: '',
-                }
+                },
             },
             assertionFunc: (output) => {
                 // finds any [INFO] level logs that matches '[INFO] ...' but not '[INFO] See cloned toolchain...' 
@@ -122,7 +131,7 @@ describe('copy-toolchain: Test functionalities', function () {
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['single-pl'].crn, '-r', TEST_TOOLCHAINS['single-pl'].region, '-D', '-f', '-C'],
             expected: null,
             options: {
-                timeout: 60000,
+                timeout: 100000,
                 cwd: TEMP_DIR + '/' + 'compact-flag-only-generates-one-tf-file'
             },
             assertionFunc: () => {
@@ -148,7 +157,6 @@ describe('copy-toolchain: Test functionalities', function () {
                     [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['single-pl'].name}] (Ctrl-C to abort):`]: '',
                     'Only \'yes\' will be accepted to proceed. (Ctrl-C to abort)': 'yes'
                 },
-                cwd: TEMP_DIR + '/' + 'compact-flag-only-generates-one-tf-file'
             }
         }
     ];

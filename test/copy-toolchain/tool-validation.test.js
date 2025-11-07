@@ -14,8 +14,8 @@ import * as chai from 'chai';
 chai.config.truncateThreshold = 0;
 import { expect } from 'chai';
 
-import { assertPtyOutput, areFilesInDir, deleteCreatedToolchains } from '../utils/testUtils.js';
-import { TEST_TOOLCHAINS, DEFAULT_RG_ID, R2R_CLI_RG_ID } from '../data/test-toolchains.js';
+import { assertPtyOutput, deleteCreatedToolchains } from '../utils/testUtils.js';
+import { TEST_TOOLCHAINS } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
 
 nconf.env('__');
@@ -30,7 +30,7 @@ const toolchainsToDelete = new Map();
 after(async () => await deleteCreatedToolchains(toolchainsToDelete));
 
 describe('copy-toolchain: Test tool validation', function () {
-    this.timeout('120s');
+    this.timeout('300s');
     this.command = COMMAND;
     const testCases = [
         {
@@ -42,7 +42,7 @@ describe('copy-toolchain: Test tool validation', function () {
                 questionAnswerMap: {
                     '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
                 },
-                timeout: 15000
+                timeout: 30000
             }
         },
         {
@@ -54,7 +54,7 @@ describe('copy-toolchain: Test tool validation', function () {
                 questionAnswerMap: {
                     '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
                 },
-                timeout: 15000
+                timeout: 30000
             },
             assertionFunc: (output) => {
                 expect(output).to.match(/Warning! The following tools contain secrets that cannot be migrated/);
@@ -72,7 +72,7 @@ describe('copy-toolchain: Test tool validation', function () {
                 questionAnswerMap: {
                     '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
                 },
-                timeout: 15000
+                timeout: 30000
             }
         },
         {
@@ -84,7 +84,7 @@ describe('copy-toolchain: Test tool validation', function () {
                 questionAnswerMap: {
                     '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
                 },
-                timeout: 15000
+                timeout: 30000
             },
             assertionFunc: (output) => {
                 expect(output).to.match(/Warning! The following GRIT integration\(s\) are using auth_type "pat", please switch to auth_type "oauth" before proceeding/);

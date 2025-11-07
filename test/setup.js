@@ -23,12 +23,23 @@ const TEMP_DIR = resolve(nconf.get('TEST_TEMP_DIR'));
 const LOG_DIR = resolve(nconf.get('TEST_LOG_DIR'));
 const DEBUG_MODE = nconf.get('TEST_DEBUG_MODE');
 
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
 export const mochaHooks = {
-    beforeAll() {
-        if (fs.existsSync(TEMP_DIR))
-            fs.rmSync(TEMP_DIR, { recursive: true });
+    async beforeAll() {
+        for (let i = 0; i < 3; i++) {
+            try {
+                fs.rmSync(TEMP_DIR, { recursive: true, force: true });
+                fs.rmSync(LOG_DIR, { recursive: true, force: true });
+            } catch {}
+            if (!fs.existsSync(TEMP_DIR) && !fs.existsSync(LOG_DIR)) break;
+            await sleep(1000);
+        }
         fs.mkdirSync(TEMP_DIR, { recursive: true });
-        if (fs.existsSync(LOG_DIR)) fs.rmSync(LOG_DIR, { recursive: true });
     },
     beforeEach() {
         if (DEBUG_MODE === true && LOG_DIR) {

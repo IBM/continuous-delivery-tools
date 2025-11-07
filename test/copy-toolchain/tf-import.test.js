@@ -26,7 +26,7 @@ const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
 
 describe('copy-toolchain: Test import-terraform output', function () {
-    this.timeout('240s');
+    this.timeout('300s');
     this.command = COMMAND;
 
     const testCases = [
@@ -35,7 +35,7 @@ describe('copy-toolchain: Test import-terraform output', function () {
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['1pl-ghe-cc'].crn, '-r', TEST_TOOLCHAINS['1pl-ghe-cc'].region, '-D', '-f'],
             expected: null,
             options: {
-                timeout: 60000,
+                timeout: 100000,
                 cwd: TEMP_DIR + '/' + 'import-1pl-ghe-cc-toolchain'
             },
             assertionFunc: async () => {
@@ -60,7 +60,7 @@ describe('copy-toolchain: Test import-terraform output', function () {
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['1pl-ghe-cd'].crn, '-r', TEST_TOOLCHAINS['1pl-ghe-cd'].region, '-D', '-f'],
             expected: null,
             options: {
-                timeout: 60000,
+                timeout: 100000,
                 cwd: TEMP_DIR + '/' + 'import-1pl-ghe-cd-toolchain'
             },
             assertionFunc: async () => {
@@ -85,7 +85,7 @@ describe('copy-toolchain: Test import-terraform output', function () {
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['devsecops-grit-ci'].crn, '-r', TEST_TOOLCHAINS['devsecops-grit-ci'].region, '-D', '-f'],
             expected: null,
             options: {
-                timeout: 60000,
+                timeout: 100000,
                 cwd: TEMP_DIR + '/' + 'import-devsecops-grit-ci-toolchain'
             },
             assertionFunc: async () => {

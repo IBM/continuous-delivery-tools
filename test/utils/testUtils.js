@@ -30,19 +30,6 @@ function cleanOutput(data) {
     if (typeof data === 'string') return stripAnsi(data).replace(/\r/g, '').trim();
 }
 
-function parseTcIdAndRegion(output) {
-    const pattern = /See cloned toolchain: https:\/\/cloud\.ibm\.com\/devops\/toolchains\/([a-zA-Z0-9-]+)\?env_id=ibm\:yp\:([a-zA-Z0-9-]+)/;
-    const match = output.match(pattern);
-
-    if (match) {
-        const toolchainId = match[1];
-        const region = match[2];
-        return { toolchainId, region };
-    } else {
-        return null;
-    }
-}
-
 function searchDirectory(currentPath) {
     const foundFiles = [];
     const entries = fs.readdirSync(currentPath, { withFileTypes: true });
@@ -55,6 +42,19 @@ function searchDirectory(currentPath) {
         }
     }
     return foundFiles;
+}
+
+export function parseTcIdAndRegion(output) {
+    const pattern = /See cloned toolchain: https:\/\/cloud\.ibm\.com\/devops\/toolchains\/([a-zA-Z0-9-]+)\?env_id=ibm\:yp\:([a-zA-Z0-9-]+)/;
+    const match = output.match(pattern);
+
+    if (match) {
+        const toolchainId = match[1];
+        const region = match[2];
+        return { toolchainId, region };
+    } else {
+        return null;
+    }
 }
 
 export async function execCommand(fullCommand, options) {
