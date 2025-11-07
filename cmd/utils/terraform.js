@@ -309,7 +309,7 @@ async function runTerraformInit(dir, verbosity) {
 }
 
 async function runTerraformPlanGenerate(dir, fileName) {
-    return await execPromise(`terraform plan -generate-config-out=${fileName}`, { cwd: dir });
+    return await execPromise(`terraform plan -generate-config-out="${fileName}"`, { cwd: dir });
 }
 
 // primarily used to get number of resources to be used

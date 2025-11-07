@@ -141,6 +141,31 @@ async function getToolchainsByName(bearer, accountId, toolchainName) {
     }
 }
 
+async function getCdInstanceByRegion(bearer, accountId, region) {
+    const apiBaseUrl = 'https://api.global-search-tagging.cloud.ibm.com/v3';
+    const options = {
+        url: apiBaseUrl + '/resources/search',
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${bearer}`,
+            'Content-Type': 'application/json',
+        },
+        data: {
+            'query': `service_name:continuous-delivery AND region:"${region}" AND doc.state:ACTIVE`,
+            'fields': ['doc.resource_group_id', 'doc.region_id']
+        },
+        params: { account_id: accountId },
+        validateStatus: () => true
+    };
+    const response = await axios(options);
+    switch (response.status) {
+        case 200:
+            return response.data.items.length > 0;
+        default:
+            throw Error('Get CD instance failed');
+    }
+}
+
 async function getToolchainTools(bearer, toolchainId, region) {
     const apiBaseUrl = `https://api.${region}.devops.cloud.ibm.com/toolchain/v2`;
     const options = {
@@ -388,6 +413,7 @@ async function deleteToolchain(bearer, toolchainId, region) {
 export {
     getBearerToken,
     getAccountId,
+    getCdInstanceByRegion,
     getToolchain,
     getToolchainsByName,
     getToolchainTools,
