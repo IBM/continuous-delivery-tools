@@ -9,7 +9,6 @@
 
 import child_process from 'node:child_process';
 import fs from 'node:fs';
-import { randomInt } from 'node:crypto';
 import { promisify } from 'node:util';
 
 import { parse as tfToJson } from '@cdktf/hcl2json'
@@ -302,7 +301,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
 }
 
 async function runTerraformPlanGenerate(dir, fileName) {
-    return await execPromise(`terraform plan -generate-config-out=${fileName}`, { cwd: dir });
+    return await execPromise(`terraform plan -generate-config-out="${fileName}"`, { cwd: dir });
 }
 
 async function runTerraformInit(dir) {

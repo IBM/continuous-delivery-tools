@@ -16,7 +16,7 @@ import { Command, Option } from 'commander';
 import { parseEnvVar } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { setTerraformEnv, initProviderFile, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
-import { getAccountId, getBearerToken, getIamAuthPolicies, getResourceGroupIdAndName, getToolchain } from './utils/requests.js';
+import { getAccountId, getBearerToken, getCdInstanceByRegion, getIamAuthPolicies, getResourceGroupIdAndName, getToolchain } from './utils/requests.js';
 import { validatePrereqsVersions, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
 import { importTerraform } from './utils/import-terraform.js';
 
@@ -26,11 +26,12 @@ process.on('exit', (code) => {
 	if (code !== 0) logger.print(`Need help? Visit ${MIGRATION_DOC_URL} for more troubleshooting information.`);
 });
 
+const TIME_SUFFIX = new Date().getTime();
 const LOGS_DIR = '.logs';
-const TEMP_DIR = '.migration-temp'
+const TEMP_DIR = '.migration-temp-' + TIME_SUFFIX;
 const LOG_DUMP = process.env['LOG_DUMP'] === 'false' ? false : true;	// when true or not specified, logs are also written to a log file in LOGS_DIR
 const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true' ? true : false; // when true, temp folder is preserved
-const OUTPUT_DIR = 'output-' + new Date().getTime();
+const OUTPUT_DIR = 'output-' + TIME_SUFFIX;
 const DRY_RUN = false; // when true, terraform apply does not run
 
 
@@ -99,6 +100,16 @@ async function main(options) {
 		if (!apiKey) apiKey = parseEnvVar('IBMCLOUD_API_KEY');
 		bearer = await getBearerToken(apiKey);
 		const accountId = await getAccountId(bearer, apiKey);
+
+		// check for continuous delivery instance in target region
+		if (!await getCdInstanceByRegion(bearer, accountId, targetRegion)) throw Error(`Could not find a Continuous Delivery instance in the target region '${targetRegion}', please create one before proceeding.`);
+
+		// check for existing .tf files in output directory
+		if (fs.existsSync(outputDir)) {
+			let files = readdirSync(outputDir, { recursive: true });
+			files = files.filter((f) => f.endsWith('.tf'));
+			if (files.length > 0) throw Error(`Output directory already has ${files.length} '.tf' files, please specify a different output directory`);
+		}
 
 		if (options.gritMappingFile) {
 			gritMapping = JSON.parse(fs.readFileSync(resolve(options.gritMappingFile)));
