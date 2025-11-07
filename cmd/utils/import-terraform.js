@@ -8,7 +8,6 @@
  */
 
 import fs from 'node:fs';
-import { promisify } from 'node:util';
 
 import { parse as tfToJson } from '@cdktf/hcl2json'
 import { jsonToTf } from 'json-to-tf';
@@ -18,8 +17,6 @@ import { runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
 import { getRandChars, isSecretReference, normalizeName } from './utils.js';
 
 import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
-
-const writeFilePromise = promisify(fs.writeFile);
 
 export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, policyIds, dir, isCompact, verbosity) {
     // STEP 1/2: set up terraform file with import blocks
@@ -150,7 +147,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
         }
     }
 
-    await importBlocksToTf(importBlocks, dir);
+    importBlocksToTf(importBlocks, dir);
 
     if (!fs.existsSync(`${dir}/generated`)) fs.mkdirSync(`${dir}/generated`);
 
@@ -318,7 +315,7 @@ function importBlock(id, name, resourceType) {
 }
 
 // importBlocks array to tf file
-async function importBlocksToTf(blocks, dir) {
+function importBlocksToTf(blocks, dir) {
     let fileContent = '';
 
     blocks.forEach((block) => {
@@ -329,5 +326,5 @@ async function importBlocksToTf(blocks, dir) {
         fileContent += template;
     });
 
-    return await writeFilePromise(`${dir}/import.tf`, fileContent);
+    return fs.writeFileSync(`${dir}/import.tf`, fileContent);
 }
