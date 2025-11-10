@@ -11,7 +11,7 @@ import { execSync } from 'child_process';
 import { logger, LOG_STAGES } from './logger.js'
 import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, SECRET_KEYS_MAP } from '../../config.js';
 import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroup, getGritGroupProject } from './requests.js';
-import { promptUserConfirmation, promptUserInput } from './utils.js';
+import { promptUserConfirmation, promptUserInput, isSecretReference } from './utils.js';
 
 
 function validatePrereqsVersions() {
@@ -146,7 +146,6 @@ async function validateTools(token, tcId, region, skipPrompt) {
     const toolsWithHashedParams = [];
     const patTools = [];
     const classicPipelines = [];
-    const secretPattern = /^hash:SHA3-512:[a-zA-Z0-9]{128}$/;
 
     for (const tool of allTools.tools) {
         const toolName = (tool.name || tool.parameters?.name || tool.parameters?.label || '').replace(/\s+/g, '+');
@@ -203,7 +202,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 url: toolUrl
             });
         }
-        else if (['githubconsolidated', 'github_integrated', 'gitlab'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) {   // Skip secret check iff it's GitHub/GitLab integration with OAuth
+        else if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) { // Skip secret check iff it's GitHub/GitLab/GRIT integration with OAuth
             continue;
         }
         else {
@@ -212,20 +211,23 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 const pipelineData = await getPipelineData(token, tool.id, region);
 
                 pipelineData.properties.forEach((prop) => {
-                    if (prop.type === 'secure' && secretPattern.test(prop.value)) secrets.push(['properties', prop.name].join('.').replace(/\s+/g, '+'));
+                    if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0)
+                        secrets.push(['properties', prop.name].join('.').replace(/\s+/g, '+'));
                 });
 
                 pipelineData.triggers.forEach((trigger) => {
-                    if ((trigger?.secret?.type === 'token_matches' || trigger?.secret?.type === 'digest_matches') && secretPattern.test(trigger.secret.value)) secrets.push([trigger.name, trigger.secret.key_name].join('.').replace(/\s+/g, '+'));
+                    if ((trigger?.secret?.type === 'token_matches' || trigger?.secret?.type === 'digest_matches') && !isSecretReference(trigger.secret.value) && trigger.secret.value.length > 0)
+                        secrets.push([trigger.name, trigger.secret.key_name].join('.').replace(/\s+/g, '+'));
                     trigger.properties.forEach((prop) => {
-                        if (prop.type === 'secure' && secretPattern.test(prop.value)) secrets.push([trigger.name, 'properties', prop.name].join('.').replace(/\s+/g, '+'));
+                        if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0)
+                            secrets.push([trigger.name, 'properties', prop.name].join('.').replace(/\s+/g, '+'));
                     });
                 });
             }
             else {
                 const secretsToCheck = (SECRET_KEYS_MAP[tool.tool_type_id] || []).map((entry) => entry.key);    // Check for secrets in the rest of the tools
                 Object.entries(tool.parameters).forEach(([key, value]) => {
-                    if (secretPattern.test(value) && secretsToCheck.includes(key)) secrets.push(key);
+                    if (!isSecretReference(value) && value.length > 0 && secretsToCheck.includes(key)) secrets.push(key);
                 });
             }
             if (secrets.length > 0) {
@@ -260,7 +262,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
     }
 
     if (toolsWithHashedParams.length > 0) {
-        logger.warn('Warning! The following tools contain secrets that cannot be migrated, please use the \'check-secret\' command to export the secrets: \n', LOG_STAGES.setup, true);
+        logger.warn('Warning! The following tools contain secrets that cannot be migrated, please use the \'check-secrets\' command to export the secrets: \n', LOG_STAGES.setup, true);
         logger.table(toolsWithHashedParams);
     }
 
