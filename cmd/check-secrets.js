@@ -53,7 +53,7 @@ async function main(options) {
             if (SECRET_KEYS_MAP[tool.tool_type_id]) {
                 SECRET_KEYS_MAP[tool.tool_type_id].forEach((entry) => {
                     const updateableSecretParam = entry.key;
-                    if (tool.parameters[updateableSecretParam] && !isSecretReference(tool.parameters[updateableSecretParam])) {
+                    if (tool.parameters[updateableSecretParam] && !isSecretReference(tool.parameters[updateableSecretParam]) && tool.parameters[updateableSecretParam].length > 0) {
                         toolResults.push({
                             'Tool ID': tool.id,
                             'Tool Type': tool.tool_type_id,
@@ -68,7 +68,7 @@ async function main(options) {
                 const pipelineData = await getPipelineData(token, tool.id, region);
 
                 pipelineData?.properties.forEach((prop) => {
-                    if (prop.type === 'secure' && !isSecretReference(prop.value)) {
+                    if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0) {
                         pipelineResults.push({
                             'Pipeline ID': pipelineData.id,
                             'Trigger Name': '-',
@@ -79,7 +79,7 @@ async function main(options) {
 
                 pipelineData?.triggers.forEach((trigger) => {
                     trigger.properties?.forEach((prop) => {
-                        if (prop.type === 'secure' && !isSecretReference(prop.value)) {
+                        if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0) {
                             pipelineResults.push({
                                 'Pipeline ID': pipelineData.id,
                                 'Trigger Name': trigger.name,
