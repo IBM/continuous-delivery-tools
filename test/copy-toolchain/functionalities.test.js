@@ -9,12 +9,13 @@
 
 import path from 'node:path';
 import nconf from 'nconf';
+import fs from 'node:fs';
 
 import * as chai from 'chai';
 chai.config.truncateThreshold = 0;
 import { expect, assert } from 'chai';
 
-import { assertPtyOutput, areFilesInDir, deleteCreatedToolchains, parseTcIdAndRegion } from '../utils/testUtils.js';
+import { assertPtyOutput, assertExecError, areFilesInDir, deleteCreatedToolchains, parseTcIdAndRegion } from '../utils/testUtils.js';
 import { getBearerToken, getToolchain } from '../../cmd/utils/requests.js';
 import { TEST_TOOLCHAINS, DEFAULT_RG_ID, R2R_CLI_RG_ID } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
@@ -43,6 +44,16 @@ describe('copy-toolchain: Test functionalities', function () {
             options: {
                 exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
                 timeout: 10000
+            }
+        },
+        {
+            name: 'Check if CD instance exists in target region',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
+            expected: new RegExp(`Could not find a Continuous Delivery instance in the target region '${TARGET_REGIONS[0]}', please create one before proceeding.`),
+            options: {
+                exitCondition: `Could not find a Continuous Delivery instance in the target region '${TARGET_REGIONS[0]}', please create one before proceeding.`,
+                timeout: 10000,
+                env: { ...process.env, MOCK_ALL_REQUESTS: 'true', MOCK_GET_CD_INSTANCE_BY_REGION_SCENARIO: 'NOT_FOUND' }
             }
         },
         {
@@ -168,4 +179,20 @@ describe('copy-toolchain: Test functionalities', function () {
             if (res) toolchainsToDelete.set(res.toolchainId, res.region);
         });
     }
+
+    it('Check for existing .tf files in output directory', async () => {
+        const testDir = path.resolve(TEMP_DIR, 'check-for-existing-tf-files-in-out-dir');
+        const tfFilePath = path.resolve(testDir, 'empty.tf');
+        if (!fs.existsSync(testDir)) fs.mkdirSync(testDir, { recursive: true });
+        fs.writeFileSync(tfFilePath, '');
+
+        const cmd = [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0], '-d', testDir];
+        if (VERBOSE_MODE) cmd.push('-v');
+
+        await assertExecError(
+            cmd,
+            /Output directory already has 1 '.tf' files, please specify a different output directory/,
+            { cwd: testDir }
+        );
+    });
 });

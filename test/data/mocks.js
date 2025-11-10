@@ -26,6 +26,16 @@ const invalidGritMapping = {
 
 const invalidGritFileName = 'invalid-mapping.json';
 
+const getCdInstanceByRegionResponses = {
+    'NOT_FOUND': {
+        status: 200,
+        data: {
+            items: [],
+            limit: 10
+        }
+    }
+};
+
 export default {
     invalidCrn,
     invalidRegion,
@@ -34,5 +44,6 @@ export default {
     invalidRgId,
     invalidRgName,
     invalidGritMapping,
-    invalidGritFileName
+    invalidGritFileName,
+    getCdInstanceByRegionResponses
 };
