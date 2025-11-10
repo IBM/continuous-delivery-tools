@@ -49,6 +49,10 @@ async function main(options) {
         for (let i = 0; i < getToolsRes.tools.length; i++) {
             const tool = getToolsRes.tools[i];
 
+            // Skip iff it's GitHub/GitLab/GRIT integration with OAuth
+            if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth'))
+                continue;
+
             // Check tool integrations for any plain text secret values
             if (SECRET_KEYS_MAP[tool.tool_type_id]) {
                 SECRET_KEYS_MAP[tool.tool_type_id].forEach((entry) => {
