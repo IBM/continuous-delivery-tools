@@ -106,7 +106,7 @@ async function main(options) {
 
 		// check for existing .tf files in output directory
 		if (fs.existsSync(outputDir)) {
-			let files = readdirSync(outputDir, { recursive: true });
+			let files = fs.readdirSync(outputDir, { recursive: true });
 			files = files.filter((f) => f.endsWith('.tf'));
 			if (files.length > 0) throw Error(`Output directory already has ${files.length} '.tf' files, please specify a different output directory`);
 		}
@@ -249,7 +249,8 @@ async function main(options) {
 			LOG_STAGES.import
 		);
 
-		if (nonSecretRefs.length > 0) logger.warn(`\nWarning! The following generated terraform resource contains a hashed secret, applying without changes may result in error(s):\n${nonSecretRefs.map((entry) => `- ${entry}\n`).join('')}`, '', true);
+		if (nonSecretRefs.length > 0) logger.warn(`\nWarning! The following generated terraform resource contains hashed secret(s) that cannot be migrated, applying without changes may result in error(s):`);
+		logger.table(nonSecretRefs);
 
 	} catch (err) {
 		if (err.message && err.stack) {
