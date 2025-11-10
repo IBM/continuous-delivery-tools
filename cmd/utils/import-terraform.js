@@ -70,8 +70,15 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     if (isSecretReference(tool.parameters[key])) {
                         additionalProps[block.name].push({ param: tfKey, value: tool.parameters[key] });
                     } else {
-                        nonSecretRefs.push(block.name);
-                        if (required) additionalProps[block.name].push({ param: tfKey, value: `<${tfKey}>` });
+                        const newFileName = SUPPORTED_TOOLS_MAP[tool.tool_type_id].split('ibm_')[1];
+                        if (required) {
+                            nonSecretRefs.push({
+                            resource_name: block.name, 
+                            property_name: tfKey,
+                            file_name: isCompact ? 'resources.tf' : `${newFileName}.tf`
+                            });
+                            additionalProps[block.name].push({ param: tfKey, value: `<${tfKey}>` });
+                        }
                     }
                 });
             }

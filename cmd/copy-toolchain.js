@@ -249,7 +249,8 @@ async function main(options) {
 			LOG_STAGES.import
 		);
 
-		if (nonSecretRefs.length > 0) logger.warn(`\nWarning! The following generated terraform resource contains a hashed secret, applying without changes may result in error(s):\n${nonSecretRefs.map((entry) => `- ${entry}\n`).join('')}`, '', true);
+		if (nonSecretRefs.length > 0) logger.warn(`\nWarning! The following generated terraform resource contains hashed secret(s) that cannot be migrated, applying without changes may result in error(s):`);
+		logger.table(nonSecretRefs);
 
 	} catch (err) {
 		if (err.message && err.stack) {
