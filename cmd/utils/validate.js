@@ -202,7 +202,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 url: toolUrl
             });
         }
-        else if (['githubconsolidated', 'github_integrated', 'gitlab'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) {   // Skip secret check iff it's GitHub/GitLab integration with OAuth
+        else if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) {   // Skip secret check iff it's GitHub/GitLab/HostedGit integration with OAuth
             continue;
         }
         else {
