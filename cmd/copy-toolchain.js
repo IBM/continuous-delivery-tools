@@ -106,7 +106,7 @@ async function main(options) {
 
 		// check for existing .tf files in output directory
 		if (fs.existsSync(outputDir)) {
-			let files = readdirSync(outputDir, { recursive: true });
+			let files = fs.readdirSync(outputDir, { recursive: true });
 			files = files.filter((f) => f.endsWith('.tf'));
 			if (files.length > 0) throw Error(`Output directory already has ${files.length} '.tf' files, please specify a different output directory`);
 		}
