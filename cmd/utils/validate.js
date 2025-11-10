@@ -211,20 +211,23 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 const pipelineData = await getPipelineData(token, tool.id, region);
 
                 pipelineData.properties.forEach((prop) => {
-                    if (prop.type === 'secure' && !isSecretReference(prop.value)) secrets.push(['properties', prop.name].join('.').replace(/\s+/g, '+'));
+                    if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0)
+                        secrets.push(['properties', prop.name].join('.').replace(/\s+/g, '+'));
                 });
 
                 pipelineData.triggers.forEach((trigger) => {
-                    if ((trigger?.secret?.type === 'token_matches' || trigger?.secret?.type === 'digest_matches') && !isSecretReference(trigger.secret.value)) secrets.push([trigger.name, trigger.secret.key_name].join('.').replace(/\s+/g, '+'));
+                    if ((trigger?.secret?.type === 'token_matches' || trigger?.secret?.type === 'digest_matches') && !isSecretReference(trigger.secret.value) && trigger.secret.value.length > 0)
+                        secrets.push([trigger.name, trigger.secret.key_name].join('.').replace(/\s+/g, '+'));
                     trigger.properties.forEach((prop) => {
-                        if (prop.type === 'secure' && !isSecretReference(prop.value)) secrets.push([trigger.name, 'properties', prop.name].join('.').replace(/\s+/g, '+'));
+                        if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0)
+                            secrets.push([trigger.name, 'properties', prop.name].join('.').replace(/\s+/g, '+'));
                     });
                 });
             }
             else {
                 const secretsToCheck = (SECRET_KEYS_MAP[tool.tool_type_id] || []).map((entry) => entry.key);    // Check for secrets in the rest of the tools
                 Object.entries(tool.parameters).forEach(([key, value]) => {
-                    if (!isSecretReference(value) && secretsToCheck.includes(key)) secrets.push(key);
+                    if (!isSecretReference(value) && value.length > 0 && secretsToCheck.includes(key)) secrets.push(key);
                 });
             }
             if (secrets.length > 0) {
