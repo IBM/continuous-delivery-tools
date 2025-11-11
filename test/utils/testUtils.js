@@ -8,11 +8,14 @@
  */
 
 import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
 import child_process from 'child_process';
 import stripAnsi from 'strip-ansi';
 import pty from 'node-pty';
+import { parse as tfToJson } from '@cdktf/hcl2json'
 import nconf from 'nconf';
-import { expect } from 'chai';
+import { expect, assert } from 'chai';
 
 import { getBearerToken, deleteToolchain } from '../../cmd/utils/requests.js';
 import { logger } from '../../cmd/utils/logger.js';
@@ -20,15 +23,53 @@ import { logger } from '../../cmd/utils/logger.js';
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');
 
+const TEMP_DIR = nconf.get('TEST_TEMP_DIR');
 const IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
 
 function cleanOutput(data) {
     if (typeof data === 'string') return stripAnsi(data).replace(/\r/g, '').trim();
 }
 
+function searchDirectory(currentPath) {
+    const foundFiles = [];
+    const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+    for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name);
+        if (entry.isDirectory()) {
+            foundFiles.push(...searchDirectory(fullPath));
+        } else {
+            foundFiles.push(path.join(currentPath, entry.name));
+        }
+    }
+    return foundFiles;
+}
+
+export function parseTcIdAndRegion(output) {
+    const pattern = /See cloned toolchain: https:\/\/cloud\.ibm\.com\/devops\/toolchains\/([a-zA-Z0-9-]+)\?env_id=ibm\:yp\:([a-zA-Z0-9-]+)/;
+    const match = output.match(pattern);
+
+    if (match) {
+        const toolchainId = match[1];
+        const region = match[2];
+        return { toolchainId, region };
+    } else {
+        return null;
+    }
+}
+
 export async function execCommand(fullCommand, options) {
     const commandStr = `node ${fullCommand.join(' ')}`;
     const execPromise = promisify(child_process.exec);
+
+    if (!options) {
+        options = { cwd: TEMP_DIR }
+    } else {
+        options.cwd ??= TEMP_DIR;
+        if (!fs.existsSync(options.cwd)) {
+            fs.mkdirSync(options.cwd, { recursive: true });
+        }
+    }
+
     try {
         const { stdout, stderr } = await execPromise(commandStr, options);
         if (stderr) {
@@ -51,11 +92,13 @@ export async function execCommand(fullCommand, options) {
 export function runPtyProcess(fullCommand, options) {
     const {
         timeout = 0,
-        cwd = process.cwd(),
+        cwd = TEMP_DIR,
         env = process.env,
         questionAnswerMap = {},
         exitCondition = '',
     } = options;
+
+    if (!fs.existsSync(cwd)) fs.mkdirSync(cwd, { recursive: true });
 
     return new Promise((resolve, reject) => {
         try {
@@ -106,7 +149,7 @@ export function runPtyProcess(fullCommand, options) {
     });
 }
 
-export async function testSuiteCleanup(toolchainsToDelete) {
+export async function deleteCreatedToolchains(toolchainsToDelete) {
     if (toolchainsToDelete && typeof toolchainsToDelete === 'object' && toolchainsToDelete.size > 0) {
         const token = await getBearerToken(IBMCLOUD_API_KEY);
         const deletePromises = [...toolchainsToDelete.entries()].map(([id, region]) => deleteToolchain(token, id, region));
@@ -114,24 +157,83 @@ export async function testSuiteCleanup(toolchainsToDelete) {
     }
 }
 
-export async function expectExecError(fullCommand, expectedMessage, options) {
+export async function assertExecError(fullCommand, expectedMessage, options, assertionFn) {
     try {
         const output = await execCommand(fullCommand, options);
         logger.dump(output);
         throw new Error('Expected command to fail but it succeeded');
     } catch (e) {
         logger.dump(e.message);
-        expect(e.message).to.match(expectedMessage);
+        if (assertionFn) {
+            const res = assertionFn(e.message);
+            if (res instanceof Promise) await res;
+        } else if (expectedMessage) {
+            expect(e.message).to.match(expectedMessage);
+        } else {
+            assert.fail('No assertion function or expected message provided.');
+        }
     }
 }
 
-export async function expectPtyOutputToMatch(fullCommand, expectedMessage, options) {
+export async function assertPtyOutput(fullCommand, expectedMessage, options, assertionFn) {
     try {
         const output = await runPtyProcess(fullCommand, options);
         logger.dump(output);
-        expect(output).to.match(expectedMessage);
+        if (assertionFn) {
+            const res = assertionFn(output);
+            if (res instanceof Promise) await res;
+        } else if (expectedMessage) {
+            expect(output).to.match(expectedMessage);
+        } else {
+            assert.fail('No assertion function or expected message provided.');
+        }
+        return parseTcIdAndRegion(output);
     } catch (e) {
         logger.dump(e.message);
         throw (e);
     }
+}
+
+export function areFilesInDir(dirPath, filePatterns) {
+    const foundFiles = searchDirectory(dirPath);
+    for (const pattern of filePatterns) {
+        const regex = new RegExp(pattern);
+        if (!foundFiles.some(file => regex.test(file))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+export async function assertTfResourcesInDir(dirPath, expectedResourcesMap) {
+    const resourceCounter = {};
+
+    const foundFiles = searchDirectory(dirPath);
+    const allResources = [];
+    for (const file of foundFiles) {
+        if (!file.endsWith('.tf')) continue;
+        const fileName = path.basename(file);
+        const tfFile = fs.readFileSync(file, 'utf8');
+        const tfFileObject = await tfToJson(fileName, tfFile);
+        if (tfFileObject.resource) allResources.push(tfFileObject.resource);
+    }
+
+    for (const resourceMap of allResources) {
+        for (const resourceType of Object.keys(resourceMap)) {
+            resourceCounter[resourceType] = (resourceCounter[resourceType] || 0) + 1;
+        }
+    }
+    // Check if all expected resources are present
+    for (const [resourceType, expectedCount] of Object.entries(expectedResourcesMap)) {
+        if (resourceCounter[resourceType] !== expectedCount) {
+            assert.fail(`Expected ${expectedCount} ${resourceType} resource(s) but found ${resourceCounter[resourceType] || 0}`);
+        }
+    }
+    // Check if there are unexpected resources
+    for (const [resourceType, count] of Object.entries(resourceCounter)) {
+        if (!(resourceType in expectedResourcesMap)) {
+            assert.fail(`Unexpected ${resourceType} resource found. (Count: ${count})`);
+        }
+    }
+    assert.ok(true, 'Directory contains all expected resources');
 }

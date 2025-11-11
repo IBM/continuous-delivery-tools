@@ -19,11 +19,31 @@ const invalidRgId = 'invalid#RgId';
 
 const invalidRgName = 'invalid#Rg@Name';
 
+const invalidGritMapping = {
+    'ca-tor.git.cloud.ibm.com/fake-user/fake-repo': 'eu-gb.git.cloud.ibm.com/fake-user/fake-repo',
+    'ibm.com/fake-user/fake-repo': 'ibm.com/fake-user/fake-repo'
+};
+
+const invalidGritFileName = 'invalid-mapping.json';
+
+const getCdInstanceByRegionResponses = {
+    'NOT_FOUND': {
+        status: 200,
+        data: {
+            items: [],
+            limit: 10
+        }
+    }
+};
+
 export default {
     invalidCrn,
     invalidRegion,
     invalidTcName,
     invalidTag,
     invalidRgId,
-    invalidRgName
+    invalidRgName,
+    invalidGritMapping,
+    invalidGritFileName,
+    getCdInstanceByRegionResponses
 };

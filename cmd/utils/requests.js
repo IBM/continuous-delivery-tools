@@ -10,7 +10,10 @@
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 
+import mocks from '../../test/data/mocks.js'
 import { logger, LOG_STAGES } from './logger.js';
+
+const MOCK_ALL_REQUESTS = process.env.MOCK_ALL_REQUESTS === 'true' || 'false';
 
 axiosRetry(axios, {
     retries: 3,
@@ -142,6 +145,10 @@ async function getToolchainsByName(bearer, accountId, toolchainName) {
 }
 
 async function getCdInstanceByRegion(bearer, accountId, region) {
+    if (MOCK_ALL_REQUESTS && process.env.MOCK_GET_CD_INSTANCE_BY_REGION_SCENARIO) {
+        return mocks.getCdInstanceByRegionResponses[process.env.MOCK_GET_CD_INSTANCE_BY_REGION_SCENARIO].data.items.length > 0;
+    }
+
     const apiBaseUrl = 'https://api.global-search-tagging.cloud.ibm.com/v3';
     const options = {
         url: apiBaseUrl + '/resources/search',
@@ -403,7 +410,7 @@ async function deleteToolchain(bearer, toolchainId, region) {
     };
     const response = await axios(options);
     switch (response.status) {
-        case 200:
+        case 204:
             return toolchainId;
         default:
             throw Error(response.statusText);

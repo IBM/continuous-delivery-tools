@@ -237,7 +237,7 @@ async function main(options) {
 			}, 5000);
 
 			await initProviderFile(sourceRegion, TEMP_DIR);
-			await runTerraformInit(TEMP_DIR);
+			await runTerraformInit(TEMP_DIR, verbosity);
 
 			nonSecretRefs = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, targetToolchainName, policyIds, TEMP_DIR, isCompact, verbosity);
 		};
@@ -303,7 +303,8 @@ async function main(options) {
 				'Running terraform init...',
 				'Terraform successfully initialized',
 				LOG_STAGES.tf,
-				outputDir
+				outputDir,
+				verbosity
 			);
 
 			logger.info(`DRY_RUN: ${dryRun}, running terraform apply...`, LOG_STAGES.tf);
