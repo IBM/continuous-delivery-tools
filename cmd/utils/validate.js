@@ -445,8 +445,7 @@ async function validateGritUrl(token, region, url, validateFull) {
 
     // try group
     try {
-        const groupId = await getGritGroup(accessToken, region, urlStart);
-        await getGritGroupProject(accessToken, region, groupId, projectName);
+        await getGritGroupProject(accessToken, region, urlStart, projectName);
         return trimmed;
     } catch {
         throw Error('Provided GRIT url not found');

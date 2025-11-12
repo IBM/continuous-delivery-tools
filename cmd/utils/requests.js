@@ -332,14 +332,13 @@ async function getGritUserProject(privToken, region, user, projectName) {
 }
 
 async function getGritGroup(privToken, region, groupName) {
-    const url = `https://${region}.git.cloud.ibm.com/api/v4/groups`
+    const url = `https://${region}.git.cloud.ibm.com/api/v4/groups/${groupName}`
     const options = {
         url: url,
         method: 'GET',
         headers: {
             'PRIVATE-TOKEN': privToken
         },
-        params: { simple: true, search: groupName },
         validateStatus: () => true
     };
     const response = await axios(options);
