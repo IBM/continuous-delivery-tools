@@ -10,11 +10,12 @@
 
 import { program } from 'commander';
 import * as commands from './cmd/index.js'
+import packageJson from './package.json' with { type: "json" };
 
 program
-  .name('index.js')
+  .name(process.env.npm_package_name ?? 'index.js')
   .description('Tools and utilities for the IBM Cloud Continuous Delivery service and resources.')
-  .version('0.0.1')
+  .version(packageJson.version)
   .showHelpAfterError();
 
 for (let i in commands) {
