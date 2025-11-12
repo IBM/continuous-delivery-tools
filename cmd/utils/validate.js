@@ -240,7 +240,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
             }
         }
     }
-    const hasInvalidConfig = nonConfiguredTools.length > 0 || patTools.length > 0 || toolsWithHashedParams.length > 0;
+    const hasInvalidConfig = nonConfiguredTools.length > 0 || toolsWithHashedParams.length > 0;
 
     if (classicPipelines.length > 0) {
         logger.failSpinner('Unsupported tools found!');
@@ -257,7 +257,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
     }
 
     if (patTools.length > 0) {
-        logger.warn('Warning! The following GRIT integration(s) are using auth_type "pat", please switch to auth_type "oauth" before proceeding: \n', LOG_STAGES.setup, true);
+        logger.warn('Warning! The following GRIT integration(s) with auth_type "pat" are unsupported during migration and will automatically be converted to auth_type "oauth": \n', LOG_STAGES.setup, true);
         logger.table(patTools);
     }
 
