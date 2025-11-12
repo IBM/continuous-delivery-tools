@@ -147,6 +147,13 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
             if (newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'])) {
                     try {
+                        newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
+                        delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
+                    } catch {
+                        // do nothing
+                    }
+
+                    try {
                         const thisUrl = v['initialization'][0]['repo_url'];
                         if (thisUrl in gritMapping) {
                             newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['initialization'][0]['repo_url'] = gritMapping[thisUrl];
