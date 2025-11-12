@@ -60,9 +60,9 @@ class Logger {
 
     #baseLog(type, msg, prefix) {
         const level = LEVELS[type] || LEVELS.log;
-        const formatted = this.#getFullPrefix(prefix) + ' ' + `${level.color}${msg}${COLORS.reset}`;
+        const formatted = (prefix ? this.#getFullPrefix(prefix) + ' ' : '') + `${level.color}${msg}${COLORS.reset}`;
         console[level.method](formatted);
-        this.logStream?.write(stripAnsi(this.#getFullPrefix(prefix) + ` [${type.toUpperCase()}] ` + msg) + '\n');
+        this.logStream?.write(stripAnsi((prefix ? this.#getFullPrefix(prefix) + ' ' : '') + `[${type.toUpperCase()}] ` + msg) + '\n');
     }
 
     info(msg, prefix = '', force = false) { if (this.verbosity >= 1 || force) this.#baseLog('info', msg, prefix); }
@@ -153,7 +153,9 @@ class Logger {
             tableRow.push(
                 ...Object.values(row).map(val => {
                     if (Array.isArray(val))
-                        return val.map((item, idx) => `${idx + 1}: ${item}`).join('\n');
+                        return val.map((item, idx) => `${idx + 1}: ${item ?? '-'}`).join('\n');
+                    else if (val === '')
+                        return '-';
                     else if (typeof val === 'string')
                         return val;
                     return JSON.stringify(val);
@@ -172,5 +174,6 @@ export const LOG_STAGES = {
     setup: 'setup',
     import: 'import',
     tf: 'terraform',
-    info: 'info'
+    info: 'info',
+    request: 'request'
 };

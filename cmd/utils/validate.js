@@ -10,9 +10,12 @@
 import { execSync } from 'child_process';
 import { logger, LOG_STAGES } from './logger.js'
 import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, SECRET_KEYS_MAP } from '../../config.js';
-import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroup, getGritGroupProject } from './requests.js';
+import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroupProject } from './requests.js';
 import { promptUserConfirmation, promptUserInput, isSecretReference } from './utils.js';
 
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] === 'test.cloud.ibm.com' ? 'test.cloud.ibm.com' : 'cloud.ibm.com';
+const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
+const GIT_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_GIT_URL'] : '';
 
 function validatePrereqsVersions() {
     const compareVersions = (verInstalled, verRequired) => {
@@ -145,12 +148,13 @@ async function validateTools(token, tcId, region, skipPrompt) {
     const nonConfiguredTools = [];
     const toolsWithHashedParams = [];
     const patTools = [];
+    const gheTools = [];
     const classicPipelines = [];
 
     for (const tool of allTools.tools) {
         const toolName = (tool.name || tool.parameters?.name || tool.parameters?.label || '').replace(/\s+/g, '+');
         logger.updateSpinnerMsg(`Validating tool \'${toolName}\'`);
-        const toolUrl = `https://cloud.ibm.com/devops/toolchains/${tool.toolchain_id}/configure/${tool.id}?env_id=ibm:yp:${region}`;
+        const toolUrl = `https://${CLOUD_PLATFORM}/devops/toolchains/${tool.toolchain_id}/configure/${tool.id}?env_id=ibm:yp:${region}`;
 
         if (tool.state !== 'configured') {  // Check for tools in misconfigured/unconfigured/configuring state
             nonConfiguredTools.push({
@@ -195,14 +199,24 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 url: toolUrl
             });
         }
-        else if (tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic') { // Check for Classic pipelines
+
+        if (tool.tool_type_id === 'github_integrated') {
+            gheTools.push({
+                tool_name: toolName,
+                type: tool.tool_type_id,
+                url: toolUrl
+            });
+        }
+
+        if (tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic') { // Check for Classic pipelines
             classicPipelines.push({
                 tool_name: toolName,
                 type: 'classic pipeline',
                 url: toolUrl
             });
         }
-        else if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) { // Skip secret check iff it's GitHub/GitLab/GRIT integration with OAuth
+
+        if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) { // Skip secret check iff it's GitHub/GitLab/GRIT integration with OAuth
             continue;
         }
         else {
@@ -240,7 +254,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
             }
         }
     }
-    const hasInvalidConfig = nonConfiguredTools.length > 0 || patTools.length > 0 || toolsWithHashedParams.length > 0;
+    const hasInvalidConfig = nonConfiguredTools.length > 0 || toolsWithHashedParams.length > 0;
 
     if (classicPipelines.length > 0) {
         logger.failSpinner('Unsupported tools found!');
@@ -257,8 +271,13 @@ async function validateTools(token, tcId, region, skipPrompt) {
     }
 
     if (patTools.length > 0) {
-        logger.warn('Warning! The following GRIT integration(s) are using auth_type "pat", please switch to auth_type "oauth" before proceeding: \n', LOG_STAGES.setup, true);
+        logger.warn('Warning! The following GRIT integration(s) with auth_type "pat" are unsupported during migration and will automatically be converted to auth_type "oauth": \n', LOG_STAGES.setup, true);
         logger.table(patTools);
+    }
+
+    if (gheTools.length > 0) {
+        logger.warn('Warning! The following legacy GHE integration(s) are unsupported during migration will automatically be converted to equivalent GitHub integrations: \n', LOG_STAGES.setup, true);
+        logger.table(gheTools);
     }
 
     if (toolsWithHashedParams.length > 0) {
@@ -353,12 +372,10 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
                     type: tool.tool_type_id + (isGHE ? ' (GHE)' : ''),
                     link: authorizeUrl?.message != 'Get git OAuth failed' ? 'See link below' : 'Get git OAuth failed',
                 })
-                if (authorizeUrl?.message != 'Get git OAuth failed') {
-                    if (isGHE) {
-                        oauthLinks.push({ type: 'githubconsolidated (GHE)', link: authorizeUrl?.message });
-                    } else {
-                        oauthLinks.push({ type: tool.tool_type_id, link: authorizeUrl?.message ?? 'Could not get OAuth link' });
-                    }
+                if (isGHE) {
+                    oauthLinks.push({ type: 'githubconsolidated (GHE)', link: authorizeUrl?.message });
+                } else {
+                    oauthLinks.push({ type: tool.tool_type_id, link: authorizeUrl?.message });
                 }
             }
         }
@@ -376,11 +393,11 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
 
         if (oauthLinks.length > 0) logger.print('Authorize using the following links:\n');
         oauthLinks.forEach((o) => {
-            if (o.link === 'Could not get OAuth link') hasFailedLink = true;
+            if (o.link === 'Get git OAuth failed') hasFailedLink = true;
             logger.print(`${o.type}: \x1b[36m${o.link}\x1b[0m\n`);
         });
 
-        if (hasFailedLink) logger.print(`Please manually verify failed authorization(s): https://cloud.ibm.com/devops/git?env_id=ibm:yp:${targetRegion}\n`);
+        if (hasFailedLink) logger.print(`Please manually verify failed authorization(s): https://${CLOUD_PLATFORM}/devops/git?env_id=ibm:yp:${targetRegion}\n`);
 
         if (!skipPrompt) await promptUserConfirmation('Caution: The above git tool integration(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
     }
@@ -391,8 +408,9 @@ async function validateGritUrl(token, region, url, validateFull) {
     let trimmed;
 
     if (validateFull) {
-        if (!url.startsWith(`https://${region}.git.cloud.ibm.com/`) || !url.endsWith('.git')) throw Error('Provided full GRIT url is not valid');
-        trimmed = url.slice(`https://${region}.git.cloud.ibm.com/`.length, url.length - '.git'.length);
+        const baseUrl = (GIT_BASE_URL || `https://${region}.git.cloud.ibm.com`) + '/';
+        if (!url.startsWith(baseUrl) || !url.endsWith('.git')) throw Error('Provided full GRIT url is not valid');
+        trimmed = url.slice(baseUrl.length, url.length - '.git'.length);
     } else {
         trimmed = url.trim();
     }
@@ -447,8 +465,7 @@ async function validateGritUrl(token, region, url, validateFull) {
 
     // try group
     try {
-        const groupId = await getGritGroup(accessToken, region, urlStart);
-        await getGritGroupProject(accessToken, region, groupId, projectName);
+        await getGritGroupProject(accessToken, region, urlStart, projectName);
         return trimmed;
     } catch {
         throw Error('Provided GRIT url not found');

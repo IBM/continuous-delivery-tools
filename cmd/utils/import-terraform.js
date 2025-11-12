@@ -262,7 +262,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
                 // clean up parameters
                 const newParamsMap = {};
-                const paramsToInclude = ['api_token', 'auth_type', 'enable_traceability', 'integration_owner', 'toolchain_issues_enabled'];
+                const paramsToInclude = ['api_token', 'auth_type', 'enable_traceability', 'toolchain_issues_enabled'];
                 for (const param of paramsToInclude) {
                     newParamsMap[param] = paramsMap[param];
                 }

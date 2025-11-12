@@ -48,7 +48,7 @@ The tools are provided as an [npx](https://docs.npmjs.com/cli/commands/npx) comm
 
 ```shell-session
 $ npx @ibm-cloud/cd-tools
-Usage: npx @ibm-cloud/cd-tools [options] [command]
+Usage: @ibm-cloud/cd-tools [options] [command]
 
 Tools for migrating Toolchains, Delivery Pipelines, and Git Repos and Issue Tracking projects.
 

@@ -10,9 +10,6 @@
 import path from 'node:path';
 import nconf from 'nconf';
 
-import * as chai from 'chai';
-chai.config.truncateThreshold = 0;
-
 import { assertTfResourcesInDir, assertPtyOutput } from '../utils/testUtils.js';
 import { TEST_TOOLCHAINS } from '../data/test-toolchains.js';
 

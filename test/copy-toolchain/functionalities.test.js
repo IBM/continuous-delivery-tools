@@ -11,8 +11,6 @@ import path from 'node:path';
 import nconf from 'nconf';
 import fs from 'node:fs';
 
-import * as chai from 'chai';
-chai.config.truncateThreshold = 0;
 import { expect, assert } from 'chai';
 
 import { assertPtyOutput, assertExecError, areFilesInDir, deleteCreatedToolchains, parseTcIdAndRegion } from '../utils/testUtils.js';
@@ -119,8 +117,8 @@ describe('copy-toolchain: Test functionalities', function () {
             }
         },
         {
-            name: 'Silent flag suppresses info, debug and log messages',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region, '-s'],
+            name: 'Quiet flag suppresses info, debug and log messages',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region, '-q'],
             expected: null,
             options: {
                 timeout: 100000,

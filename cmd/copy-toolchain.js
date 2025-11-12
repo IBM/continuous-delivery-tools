@@ -16,23 +16,21 @@ import { Command, Option } from 'commander';
 import { parseEnvVar } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { setTerraformEnv, initProviderFile, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
-import { getAccountId, getBearerToken, getCdInstanceByRegion, getIamAuthPolicies, getResourceGroupIdAndName, getToolchain } from './utils/requests.js';
+import { getAccountId, getBearerToken, getCdInstanceByRegion, getIamAuthPolicies, getResourceGroups, getToolchain } from './utils/requests.js';
 import { validatePrereqsVersions, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
 import { importTerraform } from './utils/import-terraform.js';
 
-import { COPY_TOOLCHAIN_DESC, MIGRATION_DOC_URL, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
+import { COPY_TOOLCHAIN_DESC, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
-process.on('exit', (code) => {
-	if (code !== 0) logger.print(`Need help? Visit ${MIGRATION_DOC_URL} for more troubleshooting information.`);
-});
 
 const TIME_SUFFIX = new Date().getTime();
 const LOGS_DIR = '.logs';
 const TEMP_DIR = '.migration-temp-' + TIME_SUFFIX;
 const LOG_DUMP = process.env['LOG_DUMP'] === 'false' ? false : true;	// when true or not specified, logs are also written to a log file in LOGS_DIR
-const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true' ? true : false; // when true, temp folder is preserved
+const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true'; // when true, temp folder is preserved
 const OUTPUT_DIR = 'output-' + TIME_SUFFIX;
 const DRY_RUN = false; // when true, terraform apply does not run
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] === 'test.cloud.ibm.com' ? 'test.cloud.ibm.com' : 'cloud.ibm.com';
 
 
 const command = new Command('copy-toolchain')
@@ -45,21 +43,24 @@ const command = new Command('copy-toolchain')
 			.choices(TARGET_REGIONS)
 			.makeOptionMandatory()
 	)
-	.option('-a --apikey <api key>', 'API Key used to perform the copy. Must have IAM permission to read and create toolchains and S2S authorizations in source and target region / resource group')
+	.option('-a, --apikey <api_key>', 'API key used to authenticate. Must have IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group')
 	.option('-n, --name <name>', '(Optional) The name of the copied toolchain (default: same name as original)')
-	.option('-g, --resource-group <resource group>', '(Optional) The name or ID of destination resource group of the copied toolchain (default: same resource group as original)')
+	.option('-g, --resource-group <resource_group>', '(Optional) The name or ID of destination resource group of the copied toolchain (default: same resource group as original)')
 	.option('-t, --tag <tag>', '(Optional) The tag to add to the copied toolchain')
 	.helpOption('-h, --help', 'Display help for command')
 	.optionsGroup('Advanced options:')
-	.option('-d, --terraform-dir <directory path>', '(Optional) The target local directory to store the generated Terraform (.tf) files')
-	.option('-D, --dry-run', '(Optional) Skip running terraform apply')
+	.option('-d, --terraform-dir <path>', '(Optional) The target local directory to store the generated Terraform (.tf) files')
+	.option('-D, --dry-run', '(Optional) Skip running terraform apply; only generate the Terraform (.tf) files')
 	.option('-f, --force', '(Optional) Force the copy toolchain command to run without user confirmation')
-	.option('-S, --skip-s2s', '(Optional) Skip importing toolchain-generated S2S authorizations')
-	.option('-T, --skip-disable-triggers', '(Optional) Skip disabling triggers')
-	.option('-C, --compact', '(Optional) Generate all resources in resources.tf')
-	.option('-v --verbose', '(Optional) Increase log output')
-	.option('-s --silent', '(Optional) Suppress non-essential output, only errors and critical warnings are displayed')
-	.option('-G --grit-mapping-file <path>', '(Optional) JSON file mapping GRIT project urls to project urls in the target region')
+	.option('-S, --skip-s2s', '(Optional) Skip importing toolchain-generated service-to-service authorizations')
+	.option('-T, --skip-disable-triggers', '(Optional) Skip disabling Tekton pipeline Git or timed triggers. Note: This may result in duplicate pipeline runs')
+	.option('-C, --compact', '(Optional) Generate all resources in a single resources.tf file')
+	.option('-v, --verbose', '(Optional) Increase log output')
+	.option('-q, --quiet', '(Optional) Suppress non-essential output, only errors and critical warnings are displayed')
+	.addOption(
+		new Option('-G, --grit-mapping-file <path>', '(Optional) JSON file mapping GRIT project urls to project urls in the target region')
+			.hideHelp()
+	)
 	.showHelpAfterError()
 	.hook('preAction', cmd => cmd.showHelpAfterError(false)) // only show help during validation
 	.action(main);
@@ -74,7 +75,7 @@ async function main(options) {
 	const includeS2S = !options.skipS2s;
 	const disableTriggers = !options.skipDisableTriggers;
 	const isCompact = options.compact || false;
-	const verbosity = options.silent ? 0 : options.verbose ? 2 : 1;
+	const verbosity = options.quiet ? 0 : options.verbose ? 2 : 1;
 
 	logger.setVerbosity(verbosity);
 	if (LOG_DUMP) logger.createLogStream(`${LOGS_DIR}/copy-toolchain-${new Date().getTime()}.log`);
@@ -152,8 +153,8 @@ async function main(options) {
 			exit(1);
 		}
 
-		({ id: targetRgId, name: targetRgName } = await getResourceGroupIdAndName(bearer, accountId, targetRg || sourceToolchainData['resource_group_id']));
-
+		const resourceGroups = await getResourceGroups(bearer, accountId, [targetRg || sourceToolchainData['resource_group_id']]);
+		({ id: targetRgId, name: targetRgName } = resourceGroups[0])
 		// reuse name if not provided
 		if (!targetToolchainName) targetToolchainName = sourceToolchainData['name'];
 		[targetToolchainName, targetTag] = await warnDuplicateName(bearer, accountId, targetToolchainName, sourceRegion, targetRegion, targetRgId, targetRgName, targetTag, skipUserConfirmation);
@@ -324,7 +325,7 @@ async function main(options) {
 
 			logger.print('\n');
 			logger.info(`Toolchain "${sourceToolchainData['name']}" from ${sourceRegion} was cloned to "${targetToolchainName ?? sourceToolchainData['name']}" in ${targetRegion} ${applyErrors ? 'with some errors' : 'successfully'}, with ${numResourcesCreated} / ${numResourcesPlanned} resources created!`, LOG_STAGES.info);
-			if (newTcId) logger.info(`See cloned toolchain: https://cloud.ibm.com/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
+			if (newTcId) logger.info(`See cloned toolchain: https://${CLOUD_PLATFORM}/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
 		} else {
 			logger.info(`DRY_RUN: ${dryRun}, skipping terraform apply...`, LOG_STAGES.tf);
 		}

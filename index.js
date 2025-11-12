@@ -10,15 +10,23 @@
 
 import { program } from 'commander';
 import * as commands from './cmd/index.js'
+import { DOCS_URL } from './config.js';
+import { logger } from './cmd/utils/logger.js';
+
+import packageJson from './package.json' with { type: "json" };
+
+process.on('exit', (code) => {
+  if (code !== 0) logger.print(`Need help? Visit ${DOCS_URL} for more troubleshooting information.`);
+});
 
 program
-  .name('index.js')
+  .name(packageJson.name)
   .description('Tools and utilities for the IBM Cloud Continuous Delivery service and resources.')
-  .version('0.0.1')
+  .version(packageJson.version)
   .showHelpAfterError();
 
 for (let i in commands) {
-    program.addCommand(commands[i]);
+  program.addCommand(commands[i]);
 }
 
 program.parseAsync();
