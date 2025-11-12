@@ -20,10 +20,10 @@ import { getAccountId, getBearerToken, getCdInstanceByRegion, getIamAuthPolicies
 import { validatePrereqsVersions, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
 import { importTerraform } from './utils/import-terraform.js';
 
-import { COPY_TOOLCHAIN_DESC, MIGRATION_DOC_URL, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
+import { COPY_TOOLCHAIN_DESC, DOCS_URL, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
 process.on('exit', (code) => {
-	if (code !== 0) logger.print(`Need help? Visit ${MIGRATION_DOC_URL} for more troubleshooting information.`);
+	if (code !== 0) logger.print(`Need help? Visit ${DOCS_URL} for more troubleshooting information.`);
 });
 
 const TIME_SUFFIX = new Date().getTime();
@@ -45,21 +45,24 @@ const command = new Command('copy-toolchain')
 			.choices(TARGET_REGIONS)
 			.makeOptionMandatory()
 	)
-	.option('-a --apikey <api key>', 'API Key used to perform the copy. Must have IAM permission to read and create toolchains and S2S authorizations in source and target region / resource group')
+	.option('-a, --apikey <api_key>', 'API key used to authenticate. Must have IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group')
 	.option('-n, --name <name>', '(Optional) The name of the copied toolchain (default: same name as original)')
-	.option('-g, --resource-group <resource group>', '(Optional) The name or ID of destination resource group of the copied toolchain (default: same resource group as original)')
+	.option('-g, --resource-group <resource_group>', '(Optional) The name or ID of destination resource group of the copied toolchain (default: same resource group as original)')
 	.option('-t, --tag <tag>', '(Optional) The tag to add to the copied toolchain')
 	.helpOption('-h, --help', 'Display help for command')
 	.optionsGroup('Advanced options:')
-	.option('-d, --terraform-dir <directory path>', '(Optional) The target local directory to store the generated Terraform (.tf) files')
-	.option('-D, --dry-run', '(Optional) Skip running terraform apply')
+	.option('-d, --terraform-dir <path>', '(Optional) The target local directory to store the generated Terraform (.tf) files')
+	.option('-D, --dry-run', '(Optional) Skip running terraform apply; only generate the Terraform (.tf) files')
 	.option('-f, --force', '(Optional) Force the copy toolchain command to run without user confirmation')
-	.option('-S, --skip-s2s', '(Optional) Skip importing toolchain-generated S2S authorizations')
-	.option('-T, --skip-disable-triggers', '(Optional) Skip disabling triggers')
-	.option('-C, --compact', '(Optional) Generate all resources in resources.tf')
-	.option('-v --verbose', '(Optional) Increase log output')
-	.option('-s --silent', '(Optional) Suppress non-essential output, only errors and critical warnings are displayed')
-	.option('-G --grit-mapping-file <path>', '(Optional) JSON file mapping GRIT project urls to project urls in the target region')
+	.option('-S, --skip-s2s', '(Optional) Skip importing toolchain-generated service-to-service authorizations')
+	.option('-T, --skip-disable-triggers', '(Optional) Skip disabling Tekton pipeline Git or timed triggers. Note: This may result in duplicate pipeline runs')
+	.option('-C, --compact', '(Optional) Generate all resources in a single resources.tf file')
+	.option('-v, --verbose', '(Optional) Increase log output')
+	.option('-q, --quiet', '(Optional) Suppress non-essential output, only errors and critical warnings are displayed')
+	.addOption(
+		new Option('-G, --grit-mapping-file <path>', '(Optional) JSON file mapping GRIT project urls to project urls in the target region')
+			.hideHelp()
+	)
 	.showHelpAfterError()
 	.hook('preAction', cmd => cmd.showHelpAfterError(false)) // only show help during validation
 	.action(main);
@@ -74,7 +77,7 @@ async function main(options) {
 	const includeS2S = !options.skipS2s;
 	const disableTriggers = !options.skipDisableTriggers;
 	const isCompact = options.compact || false;
-	const verbosity = options.silent ? 0 : options.verbose ? 2 : 1;
+	const verbosity = options.quiet ? 0 : options.verbose ? 2 : 1;
 
 	logger.setVerbosity(verbosity);
 	if (LOG_DUMP) logger.createLogStream(`${LOGS_DIR}/copy-toolchain-${new Date().getTime()}.log`);
