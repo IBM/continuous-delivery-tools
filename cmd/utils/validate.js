@@ -145,6 +145,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
     const nonConfiguredTools = [];
     const toolsWithHashedParams = [];
     const patTools = [];
+    const gheTools = [];
     const classicPipelines = [];
 
     for (const tool of allTools.tools) {
@@ -195,14 +196,24 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 url: toolUrl
             });
         }
-        else if (tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic') { // Check for Classic pipelines
+
+        if (tool.tool_type_id === 'github_integrated') {
+            gheTools.push({
+                tool_name: toolName,
+                type: tool.tool_type_id,
+                url: toolUrl
+            });
+        }
+
+        if (tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic') { // Check for Classic pipelines
             classicPipelines.push({
                 tool_name: toolName,
                 type: 'classic pipeline',
                 url: toolUrl
             });
         }
-        else if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) { // Skip secret check iff it's GitHub/GitLab/GRIT integration with OAuth
+
+        if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) { // Skip secret check iff it's GitHub/GitLab/GRIT integration with OAuth
             continue;
         }
         else {
@@ -240,7 +251,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
             }
         }
     }
-    const hasInvalidConfig = nonConfiguredTools.length > 0 || patTools.length > 0 || toolsWithHashedParams.length > 0;
+    const hasInvalidConfig = nonConfiguredTools.length > 0 || toolsWithHashedParams.length > 0;
 
     if (classicPipelines.length > 0) {
         logger.failSpinner('Unsupported tools found!');
@@ -257,8 +268,13 @@ async function validateTools(token, tcId, region, skipPrompt) {
     }
 
     if (patTools.length > 0) {
-        logger.warn('Warning! The following GRIT integration(s) are using auth_type "pat", please switch to auth_type "oauth" before proceeding: \n', LOG_STAGES.setup, true);
+        logger.warn('Warning! The following GRIT integration(s) with auth_type "pat" are unsupported during migration and will automatically be converted to auth_type "oauth": \n', LOG_STAGES.setup, true);
         logger.table(patTools);
+    }
+
+    if (gheTools.length > 0) {
+        logger.warn('Warning! The following legacy GHE integration(s) are unsupported during migration will automatically be converted to equivalent GitHub integrations: \n', LOG_STAGES.setup, true);
+        logger.table(gheTools);
     }
 
     if (toolsWithHashedParams.length > 0) {
@@ -353,12 +369,10 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
                     type: tool.tool_type_id + (isGHE ? ' (GHE)' : ''),
                     link: authorizeUrl?.message != 'Get git OAuth failed' ? 'See link below' : 'Get git OAuth failed',
                 })
-                if (authorizeUrl?.message != 'Get git OAuth failed') {
-                    if (isGHE) {
-                        oauthLinks.push({ type: 'githubconsolidated (GHE)', link: authorizeUrl?.message });
-                    } else {
-                        oauthLinks.push({ type: tool.tool_type_id, link: authorizeUrl?.message ?? 'Could not get OAuth link' });
-                    }
+                if (isGHE) {
+                    oauthLinks.push({ type: 'githubconsolidated (GHE)', link: authorizeUrl?.message });
+                } else {
+                    oauthLinks.push({ type: tool.tool_type_id, link: authorizeUrl?.message });
                 }
             }
         }
@@ -376,7 +390,7 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
 
         if (oauthLinks.length > 0) logger.print('Authorize using the following links:\n');
         oauthLinks.forEach((o) => {
-            if (o.link === 'Could not get OAuth link') hasFailedLink = true;
+            if (o.link === 'Get git OAuth failed') hasFailedLink = true;
             logger.print(`${o.type}: \x1b[36m${o.link}\x1b[0m\n`);
         });
 
@@ -447,8 +461,7 @@ async function validateGritUrl(token, region, url, validateFull) {
 
     // try group
     try {
-        const groupId = await getGritGroup(accessToken, region, urlStart);
-        await getGritGroupProject(accessToken, region, groupId, projectName);
+        await getGritGroupProject(accessToken, region, urlStart, projectName);
         return trimmed;
     } catch {
         throw Error('Provided GRIT url not found');

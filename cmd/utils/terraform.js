@@ -147,6 +147,13 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
             if (newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'])) {
                     try {
+                        newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
+                        delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
+                    } catch {
+                        // do nothing
+                    }
+
+                    try {
                         const thisUrl = v['initialization'][0]['repo_url'];
                         if (thisUrl in gritMapping) {
                             newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['initialization'][0]['repo_url'] = gritMapping[thisUrl];
@@ -163,6 +170,10 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
                         } else {
                             // prompt user
                             const validateGritUrlPrompt = async (str) => {
+                                if (!str) {
+                                    logger.print('Skipping... (URL will remain unchanged in the generatedTerraform configuration)');
+                                    return '';
+                                }
                                 const newUrl = `https://${targetRegion}.git.cloud.ibm.com/${str}.git`;
                                 if (usedGritUrls.has(newUrl)) throw Error(`"${newUrl}" has already been used in another mapping entry`);
                                 return validateGritUrl(token, targetRegion, str, false);
@@ -170,15 +181,17 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
 
                             if (!firstGritPrompt) {
                                 firstGritPrompt = true;
-                                logger.print('Please enter the new URLs for the following GRIT tool(s):\n');
+                                logger.print('Please enter the new URLs for the following GRIT tool(s) (or submit empty input to skip):\n');
                             }
 
                             const newRepoSlug = await promptUserInput(`Old URL: ${thisUrl.slice(0, thisUrl.length - 4)}\nNew URL: https://${targetRegion}.git.cloud.ibm.com/`, '', validateGritUrlPrompt);
 
-                            newUrl = `https://${targetRegion}.git.cloud.ibm.com/${newRepoSlug}.git`;
-                            newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['initialization'][0]['repo_url'] = newUrl;
-                            attemptAddUsedGritUrl(newUrl);
-                            gritMapping[thisUrl] = newUrl;
+                            if (newRepoSlug) {
+                                newUrl = `https://${targetRegion}.git.cloud.ibm.com/${newRepoSlug}.git`;
+                                newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['initialization'][0]['repo_url'] = newUrl;
+                                attemptAddUsedGritUrl(newUrl);
+                                gritMapping[thisUrl] = newUrl;
+                            }
                         }
                     }
                     catch (e) {

@@ -302,8 +302,8 @@ async function getGitOAuth(bearer, targetRegion, gitId) {
     switch (response.status) {
         case 200:
             return response.data?.access_token;
-        case 500:
-            throw Error(response.data?.authorizationURI);
+        case 401:
+            throw Error(response.data?.authorizationURI ?? 'Get git OAuth failed');
         default:
             throw Error('Get git OAuth failed');
     }
@@ -332,14 +332,13 @@ async function getGritUserProject(privToken, region, user, projectName) {
 }
 
 async function getGritGroup(privToken, region, groupName) {
-    const url = `https://${region}.git.cloud.ibm.com/api/v4/groups`
+    const url = `https://${region}.git.cloud.ibm.com/api/v4/groups/${groupName}`
     const options = {
         url: url,
         method: 'GET',
         headers: {
             'PRIVATE-TOKEN': privToken
         },
-        params: { simple: true, search: groupName },
         validateStatus: () => true
     };
     const response = await axios(options);
