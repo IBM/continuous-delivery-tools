@@ -17,9 +17,9 @@ Examples:
       Copy a toolchain to the Frankfurt region with the specified name and target resource group, using the given API key
 
 Environment Variables:
-  IBMCLOUD_API_KEY                       API Key used to perform the copy. Must have IAM permission to read and create toolchains and S2S authorizations in source and target region / resource group`
+  IBMCLOUD_API_KEY                       API key used to authenticate. Must have IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group`
 
-const MIGRATION_DOC_URL = 'https://github.com/IBM/continuous-delivery-tools'; // TODO: replace with docs link
+const DOCS_URL = 'https://github.com/IBM/continuous-delivery-tools';
 
 const SOURCE_REGIONS = [
 	'au-syd',
@@ -220,7 +220,7 @@ const VAULT_REGEX = [
 
 export {
 	COPY_TOOLCHAIN_DESC,
-	MIGRATION_DOC_URL,
+	DOCS_URL,
 	SOURCE_REGIONS,
 	TARGET_REGIONS,
 	TERRAFORM_REQUIRED_VERSION,

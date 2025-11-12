@@ -119,8 +119,8 @@ describe('copy-toolchain: Test functionalities', function () {
             }
         },
         {
-            name: 'Silent flag suppresses info, debug and log messages',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region, '-s'],
+            name: 'Quiet flag suppresses info, debug and log messages',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region, '-q'],
             expected: null,
             options: {
                 timeout: 100000,
