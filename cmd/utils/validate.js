@@ -145,6 +145,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
     const nonConfiguredTools = [];
     const toolsWithHashedParams = [];
     const patTools = [];
+    const gheTools = [];
     const classicPipelines = [];
 
     for (const tool of allTools.tools) {
@@ -195,14 +196,24 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 url: toolUrl
             });
         }
-        else if (tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic') { // Check for Classic pipelines
+
+        if (tool.tool_type_id === 'github_integrated') {
+            gheTools.push({
+                tool_name: toolName,
+                type: tool.tool_type_id,
+                url: toolUrl
+            });
+        }
+
+        if (tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic') { // Check for Classic pipelines
             classicPipelines.push({
                 tool_name: toolName,
                 type: 'classic pipeline',
                 url: toolUrl
             });
         }
-        else if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) { // Skip secret check iff it's GitHub/GitLab/GRIT integration with OAuth
+
+        if (['githubconsolidated', 'github_integrated', 'gitlab', 'hostedgit'].includes(tool.tool_type_id) && (tool.parameters?.auth_type === '' || tool.parameters?.auth_type === 'oauth')) { // Skip secret check iff it's GitHub/GitLab/GRIT integration with OAuth
             continue;
         }
         else {
@@ -259,6 +270,11 @@ async function validateTools(token, tcId, region, skipPrompt) {
     if (patTools.length > 0) {
         logger.warn('Warning! The following GRIT integration(s) with auth_type "pat" are unsupported during migration and will automatically be converted to auth_type "oauth": \n', LOG_STAGES.setup, true);
         logger.table(patTools);
+    }
+
+    if (gheTools.length > 0) {
+        logger.warn('Warning! The following legacy GHE integration(s) are unsupported during migration will automatically be converted to equivalent GitHub integrations: \n', LOG_STAGES.setup, true);
+        logger.table(gheTools);
     }
 
     if (toolsWithHashedParams.length > 0) {
