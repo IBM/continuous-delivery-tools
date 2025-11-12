@@ -353,12 +353,10 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
                     type: tool.tool_type_id + (isGHE ? ' (GHE)' : ''),
                     link: authorizeUrl?.message != 'Get git OAuth failed' ? 'See link below' : 'Get git OAuth failed',
                 })
-                if (authorizeUrl?.message != 'Get git OAuth failed') {
-                    if (isGHE) {
-                        oauthLinks.push({ type: 'githubconsolidated (GHE)', link: authorizeUrl?.message });
-                    } else {
-                        oauthLinks.push({ type: tool.tool_type_id, link: authorizeUrl?.message ?? 'Could not get OAuth link' });
-                    }
+                if (isGHE) {
+                    oauthLinks.push({ type: 'githubconsolidated (GHE)', link: authorizeUrl?.message });
+                } else {
+                    oauthLinks.push({ type: tool.tool_type_id, link: authorizeUrl?.message });
                 }
             }
         }
@@ -376,7 +374,7 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
 
         if (oauthLinks.length > 0) logger.print('Authorize using the following links:\n');
         oauthLinks.forEach((o) => {
-            if (o.link === 'Could not get OAuth link') hasFailedLink = true;
+            if (o.link === 'Get git OAuth failed') hasFailedLink = true;
             logger.print(`${o.type}: \x1b[36m${o.link}\x1b[0m\n`);
         });
 

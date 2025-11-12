@@ -302,8 +302,8 @@ async function getGitOAuth(bearer, targetRegion, gitId) {
     switch (response.status) {
         case 200:
             return response.data?.access_token;
-        case 500:
-            throw Error(response.data?.authorizationURI);
+        case 401:
+            throw Error(response.data?.authorizationURI ?? 'Get git OAuth failed');
         default:
             throw Error('Get git OAuth failed');
     }
