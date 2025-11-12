@@ -13,7 +13,7 @@ import * as commands from './cmd/index.js'
 import packageJson from './package.json' with { type: "json" };
 
 program
-  .name(process.env.npm_package_name ?? 'index.js')
+  .name(packageJson.name)
   .description('Tools and utilities for the IBM Cloud Continuous Delivery service and resources.')
   .version(packageJson.version)
   .showHelpAfterError();
