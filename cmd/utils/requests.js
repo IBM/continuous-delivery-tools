@@ -294,8 +294,7 @@ async function getGitOAuth(bearer, targetRegion, gitId) {
             'Authorization': `Bearer ${bearer}`,
             'Content-Type': 'application/json',
         },
-        // TODO: replace return_uri with "official" endpoint
-        params: { env_id: `ibm:yp:${targetRegion}`, git_id: gitId, console_url: 'https://cloud.ibm.com', return_uri: `https://cloud.ibm.com/devops/git?env_id=ibm:yp:${targetRegion}` },
+        params: { env_id: `ibm:yp:${targetRegion}`, git_id: gitId, console_url: 'https://cloud.ibm.com', return_uri: `https://cloud.ibm.com/devops/git/static/github_return.html` },
         validateStatus: () => true
     };
     const response = await axios(options);
