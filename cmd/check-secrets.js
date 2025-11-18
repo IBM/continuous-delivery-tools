@@ -9,10 +9,10 @@
 'use strict';
 
 import { exit } from 'node:process';
-import { Command, Option } from 'commander';
+import { Command } from 'commander';
 import { parseEnvVar, decomposeCrn, isSecretReference, promptUserSelection, promptUserYesNo, promptUserInput } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
-import { getBearerToken, getToolchain, getToolchainTools, getPipelineData, getSmInstances, getAccountId, getResourceGroups, migrateToolchainSecrets } from './utils/requests.js';
+import { getBearerToken, getToolchain, getToolchainTools, getPipelineData, getSmInstances, createTool, getAccountId, getResourceGroups, migrateToolchainSecrets } from './utils/requests.js';
 import { SECRET_KEYS_MAP } from '../config.js';
 
 const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] === 'test.cloud.ibm.com' ? 'test.cloud.ibm.com' : 'cloud.ibm.com';
@@ -40,6 +40,7 @@ async function main(options) {
     let toolchainId;
     let region;
     let toolchainData;
+    let tools;
 
     try {
         const toolResults = [];
@@ -70,10 +71,11 @@ async function main(options) {
         // Check for plain-text secrets in all tools
         const checkSecrets = async () => {
             const getToolsRes = await getToolchainTools(bearer, toolchainId, region);
+            tools = getToolsRes.tools;
 
-            if (getToolsRes?.tools?.length > 0) {
-                for (let i = 0; i < getToolsRes.tools.length; i++) {
-                    const tool = getToolsRes.tools[i];
+            if (tools.length > 0) {
+                for (let i = 0; i < tools.length; i++) {
+                    const tool = tools[i];
                     const toolUrl = `https://${CLOUD_PLATFORM}/devops/toolchains/${tool.toolchain_id}/configure/${tool.id}?env_id=ibm:yp:${region}`;
                     const toolName = (tool.name || tool.parameters?.name || tool.parameters?.label || '').replace(/\s+/g, '+');
 
@@ -166,6 +168,11 @@ async function main(options) {
             accountId = await getAccountId(bearer, apiKey);
 
             let allSmInstances = await getSmInstances(bearer, accountId);
+            if (allSmInstances.length === 0) {
+                logger.warn('No Secrets Manager instances found. Please create a Secrets Manager instance and try again.');
+                return;
+            }
+
             const resourceGroups = await getResourceGroups(bearer, accountId, allSmInstances.map(inst => inst.resource_group_id));
             const groupNameById = Object.fromEntries(
                 resourceGroups.map(g => [g.id, g.name])
@@ -181,10 +188,62 @@ async function main(options) {
             );
             const smInstance = allSmInstances[instanceChoice];
 
-            // TODO: Support pipeline secrets migration once 'otc-api' 'migrate_plain_text_secrets' endpoint supports it
+            // Check if there's an existing Secrets Manager tool integration
+            let hasSmIntegration = false;
+            for (const tool of tools) {
+                if (tool.state === 'configured' && tool.tool_type_id === 'secretsmanager') {
+                    if (
+                        (tool.parameters?.['instance-id-type'] === 'instance-name' && tool.parameters?.['instance-name'] === smInstance.name &&
+                            tool.parameters?.region === smInstance.region_id && tool.parameters?.['resource-group'] === smInstance.resource_group_id) ||
+                        (tool.parameters?.['instance-id-type'] === 'instance-crn' && tool.parameters?.['instance-crn'] === smInstance.crn)
+                    ) {
+                        hasSmIntegration = true;
+                        break;
+                    }
+                }
+            }
+
+            // Prompt user to create a Secrets Manager tool integration if it doesn't already exist
+            if (!hasSmIntegration) {
+                logger.warn('No valid Secrets Manager tool integration found.');
+                const toCreateSmTool = await promptUserYesNo(`Create a Secrets Manager tool integration?`);
+                if (!toCreateSmTool) {
+                    logger.warn('Toolchain secrets will not be migrated to Secrets Manager. Please create a Secrets Manager tool integration and try again.');
+                    return;
+                }
+                const smToolName = await promptUserInput(`Enter the name of the Secrets Manager tool integration to create [Press 'enter' to skip]: `, '', async (input) => {
+                    if (input.length > 128) {
+                        throw new Error('The tool integration name must be between 0 and 128 characters long.');
+                    }
+                    // from https://cloud.ibm.com/apidocs/toolchain#create-tool
+                    else if (input !== '' && !/^([^\x00-\x7F]|[a-zA-Z0-9-._ ])+$/.test(input)) {
+                        throw new Error('Provided tool integration name contains invalid characters.');
+                    }
+                });
+
+                const smToolParams = {
+                    'tool_type_id': 'secretsmanager',
+                    'parameters': {
+                        'name': smToolName || 'Secrets Manager',
+                        'instance-id-type': 'instance-crn',
+                        'instance-crn': smInstance.crn,
+                    }
+                };
+                try {
+                    const smTool = await createTool(bearer, toolchainId, region, smToolParams);
+                    logger.success(`Secrets Manager tool integration created: ${smTool.parameters.name} (${smTool.id})`);
+                    const smToolUrl = `https://${CLOUD_PLATFORM}/devops/toolchains/${toolchainId}/configure/${smTool.id}?env_id=ibm:yp:${region}`;
+                    logger.warn(`Create necessary IAM service authorization for toolchain to access Secrets Manager service instance:\n${smToolUrl}`);
+                } catch (e) {
+                    logger.error(`Failed to create Secrets Manager tool integration: ${e.message}`);
+                    throw e;
+                }
+            }
+
+            // TODO: Support pipeline secrets migration once 'otc-api' 'export_secret' endpoint supports it
             let numSecretsMigrated = 0;
             for (let i = 0; i < toolResults.length; i++) {
-                logger.print('-------\n');
+                logger.print('-------');
                 const secret = toolResults[i];
                 const toolName = secret['Tool Name'];
                 const toolType = secret['Tool Type'];
@@ -228,7 +287,7 @@ async function main(options) {
                             secret_key: toolSecretKey
                         },
                         destination: {
-                            is_private: false,  // TODO: set this back to 'true' once 'otc-api' has the 'migrate_plain_text_secrets' endpoint, should always use SM private endpoint
+                            is_private: false,  // TODO: set this back to 'true' once 'otc-api' has the 'export_secret' endpoint, should always use SM private endpoint
                             is_production: CLOUD_PLATFORM === 'cloud.ibm.com',
                             secrets_manager_crn: smInstance.crn,
                             secret_name: smSecretName,

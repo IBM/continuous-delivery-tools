@@ -453,13 +453,35 @@ async function getSmInstances(bearer, accountId) {
     }
 }
 
+async function createTool(bearer, toolchainId, region, params) {
+    const apiBaseUrl = TOOLCHAIN_BASE_ENDPOINT || `https://api.${region}.devops.cloud.ibm.com/toolchain/v2`;
+    const options = {
+        method: 'POST',
+        url: `${apiBaseUrl}/toolchains/${toolchainId}/tools`,
+        headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${bearer}`,
+            'Content-Type': 'application/json',
+        },
+        data: params,
+        validateStatus: () => true
+    };
+    const response = await axios(options);
+    switch (response.status) {
+        case 201:
+            return response.data;
+        default:
+            throw Error(response.statusText);
+    }
+}
+
 async function migrateToolchainSecrets(bearer, data) {
     const apiBaseUrl = DEV_MODE ?
         `http://localhost:3400/api/v2` :    // TODO Update this when endpoint is in dev
         `https://api.${region}.devops.cloud.ibm.com/toolchain/v2`;
     const options = {
         method: 'POST',
-        url: `${apiBaseUrl}/migrate_plain_text_secrets`,
+        url: `${apiBaseUrl}/export_secret`,
         headers: {
             'Accept': 'application/json',
             'Authorization': `Bearer ${bearer}`,
@@ -494,6 +516,7 @@ export {
     getGritGroupProject,
     getIamAuthPolicies,
     deleteToolchain,
+    createTool,
     getSmInstances,
     migrateToolchainSecrets
 }
