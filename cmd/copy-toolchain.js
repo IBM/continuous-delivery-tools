@@ -16,23 +16,21 @@ import { Command, Option } from 'commander';
 import { parseEnvVar } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { setTerraformEnv, initProviderFile, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
-import { getAccountId, getBearerToken, getCdInstanceByRegion, getIamAuthPolicies, getResourceGroupIdAndName, getToolchain } from './utils/requests.js';
+import { getAccountId, getBearerToken, getCdInstanceByRegion, getIamAuthPolicies, getResourceGroups, getToolchain } from './utils/requests.js';
 import { validatePrereqsVersions, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
 import { importTerraform } from './utils/import-terraform.js';
 
-import { COPY_TOOLCHAIN_DESC, DOCS_URL, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
+import { COPY_TOOLCHAIN_DESC, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
-process.on('exit', (code) => {
-	if (code !== 0) logger.print(`Need help? Visit ${DOCS_URL} for more troubleshooting information.`);
-});
 
 const TIME_SUFFIX = new Date().getTime();
 const LOGS_DIR = '.logs';
 const TEMP_DIR = '.migration-temp-' + TIME_SUFFIX;
 const LOG_DUMP = process.env['LOG_DUMP'] === 'false' ? false : true;	// when true or not specified, logs are also written to a log file in LOGS_DIR
-const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true' ? true : false; // when true, temp folder is preserved
+const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true'; // when true, temp folder is preserved
 const OUTPUT_DIR = 'output-' + TIME_SUFFIX;
 const DRY_RUN = false; // when true, terraform apply does not run
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 
 
 const command = new Command('copy-toolchain')
@@ -155,8 +153,8 @@ async function main(options) {
 			exit(1);
 		}
 
-		({ id: targetRgId, name: targetRgName } = await getResourceGroupIdAndName(bearer, accountId, targetRg || sourceToolchainData['resource_group_id']));
-
+		const resourceGroups = await getResourceGroups(bearer, accountId, [targetRg || sourceToolchainData['resource_group_id']]);
+		({ id: targetRgId, name: targetRgName } = resourceGroups[0])
 		// reuse name if not provided
 		if (!targetToolchainName) targetToolchainName = sourceToolchainData['name'];
 		[targetToolchainName, targetTag] = await warnDuplicateName(bearer, accountId, targetToolchainName, sourceRegion, targetRegion, targetRgId, targetRgName, targetTag, skipUserConfirmation);
@@ -327,7 +325,7 @@ async function main(options) {
 
 			logger.print('\n');
 			logger.info(`Toolchain "${sourceToolchainData['name']}" from ${sourceRegion} was cloned to "${targetToolchainName ?? sourceToolchainData['name']}" in ${targetRegion} ${applyErrors ? 'with some errors' : 'successfully'}, with ${numResourcesCreated} / ${numResourcesPlanned} resources created!`, LOG_STAGES.info);
-			if (newTcId) logger.info(`See cloned toolchain: https://cloud.ibm.com/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
+			if (newTcId) logger.info(`See cloned toolchain: https://${CLOUD_PLATFORM}/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
 		} else {
 			logger.info(`DRY_RUN: ${dryRun}, skipping terraform apply...`, LOG_STAGES.tf);
 		}

@@ -6,3 +6,4 @@ output-*
 test/.tmp
 test/.test-logs
 test/config/local.json
+env.sh

@@ -168,7 +168,8 @@ const SECRET_KEYS_MAP = {
 		{ key: 'token', tfKey: 'token' },
 	],
 	'pagerduty': [
-		{ key: 'service_key', tfKey: 'service_key', required: true },
+		{ key: 'api_key', tfKey: 'api_key', prereq: { key: 'key_type', values: ['api'] } },
+		{ key: 'service_key', tfKey: 'service_key', prereq: { key: 'key_type', values: ['service'] } },
 	],
 	'private_worker': [
 		{ key: 'workerQueueCredentials', tfKey: 'worker_queue_credentials', required: true },
