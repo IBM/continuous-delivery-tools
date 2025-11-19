@@ -15,7 +15,7 @@ import { logger, LOG_STAGES } from './utils/logger.js';
 import { getBearerToken, getToolchain, getToolchainTools, getPipelineData, getSmInstances, createTool, getAccountId, getResourceGroups, migrateToolchainSecrets } from './utils/requests.js';
 import { SECRET_KEYS_MAP } from '../config.js';
 
-const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] === 'test.cloud.ibm.com' ? 'test.cloud.ibm.com' : 'cloud.ibm.com';
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 
 const command = new Command('check-secrets')
     .description('Checks if you have any stored secrets in your toolchain')

@@ -13,7 +13,7 @@ import axiosRetry from 'axios-retry';
 import mocks from '../../test/data/mocks.js'
 import { logger, LOG_STAGES } from './logger.js';
 
-const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] === 'test.cloud.ibm.com' ? 'test.cloud.ibm.com' : 'cloud.ibm.com';
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
 const IAM_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_IAM_API_ENDPOINT'] : 'https://iam.cloud.ibm.com';
 const GHOST_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_GS_API_ENDPOINT'] : 'https://api.global-search-tagging.cloud.ibm.com';

@@ -18,7 +18,7 @@ import { validateToolchainId, validateGritUrl } from './validate.js';
 import { logger, LOG_STAGES } from './logger.js';
 import { getRandChars, promptUserInput, replaceUrlRegion } from './utils.js';
 
-const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] === 'test.cloud.ibm.com' ? 'test.cloud.ibm.com' : 'cloud.ibm.com';
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
 const GIT_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_GIT_URL'] : '';
 

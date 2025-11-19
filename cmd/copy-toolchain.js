@@ -30,7 +30,7 @@ const LOG_DUMP = process.env['LOG_DUMP'] === 'false' ? false : true;	// when tru
 const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true'; // when true, temp folder is preserved
 const OUTPUT_DIR = 'output-' + TIME_SUFFIX;
 const DRY_RUN = false; // when true, terraform apply does not run
-const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] === 'test.cloud.ibm.com' ? 'test.cloud.ibm.com' : 'cloud.ibm.com';
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 
 
 const command = new Command('copy-toolchain')

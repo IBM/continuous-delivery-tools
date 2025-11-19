@@ -13,7 +13,7 @@ import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_S
 import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroupProject } from './requests.js';
 import { promptUserConfirmation, promptUserInput, isSecretReference } from './utils.js';
 
-const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] === 'test.cloud.ibm.com' ? 'test.cloud.ibm.com' : 'cloud.ibm.com';
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
 const GIT_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_GIT_URL'] : '';
 
