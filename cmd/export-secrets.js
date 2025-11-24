@@ -17,11 +17,11 @@ import { SECRET_KEYS_MAP } from '../config.js';
 
 const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 
-const command = new Command('check-secrets')
-    .description('Checks if you have any stored secrets in your toolchain')
+const command = new Command('export-secrets')
+    .description('Exports Toolchain stored secrets to a Secrets Manager instance')
     .requiredOption('-c, --toolchain-crn <crn>', 'The CRN of the toolchain to check')
     .option('-a, --apikey <api_key>', 'API key used to authenticate. Must have IAM permission to read toolchains and create secrets in Secrets Manager')
-    .option('-m, --migrate', '(Optional) Perform Toolchain stored secrets migration to a Secrets Manager instance')
+    .option('--check', '(Optional) Checks and lists any stored secrets in your toolchain')
     .option('-v, --verbose', '(Optional) Increase log output')
     .showHelpAfterError()
     .hook('preAction', cmd => cmd.showHelpAfterError(false)) // only show help during validation
@@ -30,7 +30,7 @@ const command = new Command('check-secrets')
 async function main(options) {
     const toolchainCrn = options.toolchainCrn;
     const verbosity = options.verbose ? 2 : 1;
-    const runMigration = options.migrate;
+    const runMigration = !options.check;
 
     logger.setVerbosity(verbosity);
 
@@ -154,7 +154,7 @@ async function main(options) {
         };
         if (numTotalSecrets > 0 && !runMigration) {
             logger.warn(`\nNote: ${numTotalSecrets} locally stored secret(s) found!\nSecrets stored locally in Toolchains and Pipelines will not be exported when copying a toolchain. It is recommended that secrets be moved to a Secrets Manager instance and converted to secret references if these secrets are required.`);
-            logger.warn(`\nTo migrate secrets to Secrets Manager, ensure that you have provisioned an instance of Secrets Manager which you have write access to and rerun the script with the additional param '-m, --migrate' to move the secrets into Secrets Manager.`)
+            logger.warn(`\nTo migrate secrets to Secrets Manager, ensure that you have provisioned an instance of Secrets Manager which you have write access to and rerun the command without the additional param '--check' to move the secrets into Secrets Manager.`)
         }
 
         // Facilitate Secrets Migration
@@ -194,7 +194,7 @@ async function main(options) {
                 if (tool.state === 'configured' && tool.tool_type_id === 'secretsmanager') {
                     if (
                         (tool.parameters?.['instance-id-type'] === 'instance-name' && tool.parameters?.['instance-name'] === smInstance.name &&
-                            tool.parameters?.region === smInstance.region_id && tool.parameters?.['resource-group'] === smInstance.resource_group_id) ||
+                            tool.parameters?.region === smInstance.region_id && tool.parameters?.['resource-group'] === smInstance.resource_group_name) ||
                         (tool.parameters?.['instance-id-type'] === 'instance-crn' && tool.parameters?.['instance-crn'] === smInstance.crn)
                     ) {
                         hasSmIntegration = true;

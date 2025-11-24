@@ -495,7 +495,7 @@ async function migrateToolchainSecrets(bearer, data) {
         case 201:
             return response.headers.location;
         default:
-            throw Error(response.statusText);
+            throw Error(response.data?.errors.length > 0 ? response.data.errors[0]?.message : response.statusText);
     }
 }
 

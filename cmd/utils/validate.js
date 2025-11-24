@@ -281,7 +281,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
     }
 
     if (toolsWithHashedParams.length > 0) {
-        logger.warn('Warning! The following tools contain secrets that cannot be migrated, please use the \'check-secrets\' command to export the secrets: \n', LOG_STAGES.setup, true);
+        logger.warn('Warning! The following tools contain secrets that cannot be migrated, please use the \'export-secrets\' command to export the secrets: \n', LOG_STAGES.setup, true);
         logger.table(toolsWithHashedParams);
     }
 
