@@ -293,7 +293,7 @@ async function getSecretsHealthcheck(bearer, tcId, toolName, region) {
 
 async function getGitOAuth(bearer, targetRegion, gitId) {
     const options = {
-        url: DEVOPS_BASE_URL + 'git/api/v1/tokens',
+        url: DEVOPS_BASE_URL + '/git/api/v1/tokens',
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${bearer}`,
