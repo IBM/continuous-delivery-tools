@@ -64,18 +64,18 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             if (tool.tool_type_id in SECRET_KEYS_MAP) {
                 SECRET_KEYS_MAP[tool.tool_type_id].forEach(({ key, tfKey, prereq, required }) => {
                     if (prereq) {
-                        if (!prereq.values.includes(tool[prereq.key])) return;
+                        if (!prereq.values.includes(tool.parameters[prereq.key])) return;
                     }
 
                     if (isSecretReference(tool.parameters[key])) {
                         additionalProps[block.name].push({ param: tfKey, value: tool.parameters[key] });
                     } else {
                         const newFileName = SUPPORTED_TOOLS_MAP[tool.tool_type_id].split('ibm_')[1];
-                        if (required) {
+                        if (required || prereq) {
                             nonSecretRefs.push({
-                            resource_name: block.name, 
-                            property_name: tfKey,
-                            file_name: isCompact ? 'resources.tf' : `${newFileName}.tf`
+                                resource_name: block.name,
+                                property_name: tfKey,
+                                file_name: isCompact ? 'resources.tf' : `${newFileName}.tf`
                             });
                             additionalProps[block.name].push({ param: tfKey, value: `<${tfKey}>` });
                         }
@@ -180,6 +180,15 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 // do nothing
             }
 
+            // handle missing worker, which breaks terraform
+            try {
+                if (newTfFileObj['resource'][key][k]['worker'][0]['id'] === null) {
+                    delete newTfFileObj['resource'][key][k]['worker'];
+                }
+            } catch {
+                // do nothing
+            }
+
             // ignore null values
             for (const [k2, v2] of Object.entries(v[0])) {
                 if (v2 === null) delete newTfFileObj['resource'][key][k][k2];
@@ -218,7 +227,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             }
 
             // add relevent references and depends_on
-            if (key === 'ibm_cd_tekton_pipeline') {
+            if (key === 'ibm_cd_tekton_pipeline' && newTfFileObj['resource'][key][k]['worker']) {
                 const workerId = newTfFileObj['resource'][key][k]['worker'][0]['id'];
                 if (workerId != null && workerId != 'public' && workerId in toolIdMap) {
                     newTfFileObj['resource'][key][k]['worker'][0]['id'] = `\${${toolIdMap[workerId].type}.${toolIdMap[workerId].name}.tool_id}`;
@@ -226,7 +235,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             } else if (key === 'ibm_cd_tekton_pipeline_property' || key === 'ibm_cd_tekton_pipeline_trigger_property') {
                 const propValue = newTfFileObj['resource'][key][k]['value'];
                 if (newTfFileObj['resource'][key][k]['type'] === 'integration' && propValue in toolIdMap) {
-                    newTfFileObj['resource'][key][k]['depends_on'] = [`\${${toolIdMap[propValue].type}.${toolIdMap[propValue].name}}`];
+                    newTfFileObj['resource'][key][k]['value'] = `\${${toolIdMap[propValue].type}.${toolIdMap[propValue].name}.tool_id}`;
                 }
             }
 
