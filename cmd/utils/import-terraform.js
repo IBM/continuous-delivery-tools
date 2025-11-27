@@ -63,9 +63,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             // check and add secret refs
             if (tool.tool_type_id in SECRET_KEYS_MAP) {
                 SECRET_KEYS_MAP[tool.tool_type_id].forEach(({ key, tfKey, prereq, required }) => {
-                    if (prereq) {
-                        if (!prereq.values.includes(tool.parameters[prereq.key])) return;
-                    }
+                    if (prereq && !prereq.values.includes(tool.parameters[prereq.key])) return; // missing prereq
 
                     if (isSecretReference(tool.parameters[key])) {
                         additionalProps[block.name].push({ param: tfKey, value: tool.parameters[key] });
