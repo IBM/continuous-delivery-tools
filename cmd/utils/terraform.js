@@ -104,6 +104,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
             toolIdToTfName[t['id']] = tfName;
             newConvertedTf[tfName] = {
                 toolchain_id: `\${ibm_cd_toolchain.${newTcId}.id}`,
+                name: t['name'],
                 initialization: [{
                     auto_init: 'false',
                     blind_connection: 'false',
