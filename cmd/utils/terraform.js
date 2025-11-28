@@ -50,7 +50,7 @@ async function initProviderFile(targetRegion, dir) {
     return writeFilePromise(`${dir}/provider.tf`, jsonToTf(newProviderTfStr));
 }
 
-async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, targetToolchainName, targetRgId, disableTriggers, isCompact, outputDir, tempDir, moreTfResources, gritMapping, skipUserConfirmation }) {
+async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, targetToolchainName, targetRgId, disableTriggers, isCompact, outputDir, tempDir, moreTfResources, gritMapping, skipUserConfirmation, includeS2S }) {
     const promises = [];
 
     const writeProviderPromise = await initProviderFile(targetRegion, outputDir);
@@ -340,7 +340,8 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
         }
 
         const newTfFileObjStr = JSON.stringify(newTfFileObj);
-        const newTfFile = replaceDependsOn(jsonToTf(newTfFileObjStr));
+        let newTfFile = replaceDependsOn(jsonToTf(newTfFileObjStr));
+        if (includeS2S && (isCompact || resourceName === 'ibm_cd_toolchain')) newTfFile = addS2sScriptToToolchainTf(newTfFile);
         const copyResourcesPromise = writeFilePromise(`${outputDir}/${fileName}`, newTfFile);
         promises.push(copyResourcesPromise);
     }
@@ -383,10 +384,13 @@ async function getNumResourcesPlanned(dir) {
     };
 }
 
-async function runTerraformApply(skipTfConfirmation, outputDir, verbosity) {
+async function runTerraformApply(skipTfConfirmation, outputDir, verbosity, target) {
     let command = 'terraform apply';
     if (skipTfConfirmation || verbosity === 0) {
         command = 'terraform apply -auto-approve';
+    }
+    if (target) {
+        command += ` -target="${target}"`
     }
 
     const child = child_process.spawn(command, {
@@ -461,6 +465,25 @@ function replaceDependsOn(str) {
 
             // get rid of the quotes
             return str.replaceAll(pattern, (match, s) => `  depends_on = \[\n    ${s.slice(1, s.length - 1)}\n  ]`);
+        }
+    } catch {
+        return str;
+    }
+}
+
+function addS2sScriptToToolchainTf(str) {
+    const provisionerStr = (tfName) => `\n\n  provisioner "local-exec" {
+    command = "node create-s2s-script.js"
+    environment = {
+      IBMCLOUD_API_KEY = var.ibmcloud_api_key
+      TARGET_TOOLCHAIN_ID = ibm_cd_toolchain.${tfName}.id
+    }\n  }`
+    try {
+        if (typeof str === 'string') {
+            const pattern = /^resource "ibm_cd_toolchain" "([a-z0-9_-]*)" \{$\n((.|\n)*)\n^\}$/gm;
+
+            // get rid of the quotes
+            return str.replace(pattern, (match, s1, s2) => `resource "ibm_cd_toolchain" "${s1}" {\n${s2}${provisionerStr(s1)}\n}`);
         }
     } catch {
         return str;
