@@ -167,9 +167,9 @@ const SECRET_KEYS_MAP = {
 	'nexus': [
 		{ key: 'token', tfKey: 'token' },
 	],
-	'pagerduty': [
-		{ key: 'service_key', tfKey: 'service_key', required: true },
-	],
+	// 'pagerduty': [
+	// 	{ key: 'service_key', tfKey: 'service_key', required: true },
+	// ],
 	'private_worker': [
 		{ key: 'workerQueueCredentials', tfKey: 'worker_queue_credentials', required: true },
 	],
@@ -205,7 +205,7 @@ const SUPPORTED_TOOLS_MAP = {
 	'keyprotect': 'ibm_cd_toolchain_tool_keyprotect',
 	'nexus': 'ibm_cd_toolchain_tool_nexus',
 	'customtool': 'ibm_cd_toolchain_tool_custom',
-	'pagerduty': 'ibm_cd_toolchain_tool_pagerduty',
+	// 'pagerduty': 'ibm_cd_toolchain_tool_pagerduty',
 	'saucelabs': 'ibm_cd_toolchain_tool_saucelabs',
 	'secretsmanager': 'ibm_cd_toolchain_tool_secretsmanager',
 	'security_compliance': 'ibm_cd_toolchain_tool_securitycompliance',
