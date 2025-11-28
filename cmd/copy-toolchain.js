@@ -8,7 +8,7 @@
  */
 
 import { exit } from 'node:process';
-import { resolve } from 'node:path'
+import { resolve } from 'node:path';
 import fs from 'node:fs';
 
 import { Command, Option } from 'commander';
