@@ -206,8 +206,9 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
 
         if (isCompact || resourceName === 'ibm_cd_toolchain') {
             if (targetTag) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['tags'] = [
-                ...newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['tags'] ?? [],
-                targetTag
+                Array.from(new Set( // uniqueness
+                    (newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['tags'] ?? []).concat([targetTag])
+                ))
             ];
             if (targetToolchainName) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] = targetToolchainName;
             if (targetRgId) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['resource_group_id'] = targetRgId;
