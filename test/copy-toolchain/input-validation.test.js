@@ -11,9 +11,7 @@ import path from 'node:path';
 import nconf from 'nconf';
 import fs from 'node:fs';
 
-import * as chai from 'chai';
 import { expect } from 'chai';
-chai.config.truncateThreshold = 0;
 
 import mocks from '../data/mocks.js';
 import { assertExecError, assertPtyOutput } from '../utils/testUtils.js';
@@ -81,12 +79,12 @@ describe('copy-toolchain: Test user input handling', function () {
         {
             name: 'Invalid Resource Group name is provided',
             cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-g', mocks.invalidRgName],
-            expected: /The resource group with provided ID or name was not found or is not accessible/,
+            expected: /No matching resource groups were found for the provided id\(s\) or name\(s\)/,
         },
         {
             name: 'Invalid Resource Group ID is provided',
             cmd: [CLI_PATH, COMMAND, '-c', validCrn, '-r', TARGET_REGIONS[0], '-g', mocks.invalidRgId],
-            expected: /The resource group with provided ID or name was not found or is not accessible/,
+            expected: /No matching resource groups were found for the provided id\(s\) or name\(s\)/,
         },
         {
             name: 'Non-existent GRIT mapping file provided',

@@ -13,7 +13,7 @@ Provides tools to work with IBM Cloud Continuous Delivery resources, including *
 | Other Tool Integrations | Yes |
 
 #### Limitations  
-1. Secrets stored directly in Toolchains or Delivery Pipelines (environment properties or trigger properties) will not be copied. A `check-secrets` tool is provided to export secrets into a Secrets Manager instance, replacing the stored secrets with secret references. Secret references are supported in the migration.
+1. Secrets stored directly in Toolchains or Delivery Pipelines (environment properties or trigger properties) will not be copied. A `export-secrets` tool is provided to export secrets into a Secrets Manager instance, replacing the stored secrets with secret references. Secret references are supported in the migration.
 2. Personal Access Tokens will not be copied.
 3. Pipeline run history, logs, and assets will not be copied to the new region. You can keep the original pipelines for some time to retain history.
 4. Classic pipelines are not supported.
@@ -58,7 +58,7 @@ Options:
 
 Commands:
   copy-project-group [options]  Bulk migrate GitLab group projects
-  check-secrets [options]       Checks if you have any stored secrets in your toolchain or pipelines
+  export-secrets [options]       Checks if you have any stored secrets in your toolchain or pipelines
   copy-toolchain [options]      Copies a toolchain, including tool integrations and Tekton pipelines, to another region or resource group.
   help [command]                display help for command
 ```

@@ -7,7 +7,7 @@
  * Contract with IBM Corp.
  */
 
-import checkSecrets from './check-secrets.js';
+import checkSecrets from './export-secrets.js';
 import copyToolchain from './copy-toolchain.js';
 import directTransfer from './direct-transfer.js';
 export { checkSecrets, copyToolchain, directTransfer };

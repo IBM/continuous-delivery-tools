@@ -10,8 +10,6 @@
 import path from 'node:path';
 import nconf from 'nconf';
 
-import * as chai from 'chai';
-chai.config.truncateThreshold = 0;
 import { expect } from 'chai';
 
 import { assertPtyOutput, deleteCreatedToolchains } from '../utils/testUtils.js';
@@ -87,12 +85,13 @@ describe('copy-toolchain: Test tool validation', function () {
                 timeout: 30000
             },
             assertionFunc: (output) => {
-                expect(output).to.match(/Warning! The following GRIT integration\(s\) are using auth_type "pat", please switch to auth_type "oauth" before proceeding/);
+                expect(output).to.match(/Warning! The following GRIT integration\(s\) with auth_type "pat" are unsupported during migration and will automatically be converted to auth_type "oauth"/);
                 expect(output).to.match(/hostedgit/);
                 expect(output).to.match(/Warning! The following tools contain secrets that cannot be migrated/);
                 expect(output).to.match(/githubconsolidated[\s\S]*?api_token/);
                 expect(output).to.match(/github_integrated[\s\S]*?api_token/);
                 expect(output).to.match(/gitlab[\s\S]*?api_token/);
+                expect(output).to.match(/pagerduty[\s\S]*?api_key/);
             }
         },
     ];
