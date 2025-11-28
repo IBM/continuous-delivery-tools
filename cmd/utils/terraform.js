@@ -92,6 +92,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
     // for converting legacy GHE tool integrations
     const hasGHE = moreTfResources['github_integrated'].length > 0;
     const repoToTfName = {};
+    const toolIdToTfName = {};
     const newConvertedTf = {};
 
     if (hasGHE) {
@@ -100,8 +101,10 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
             const tfName = `converted--githubconsolidated_${getRandChars(4)}`;
 
             repoToTfName[gitUrl] = tfName;
+            toolIdToTfName[t['id']] = tfName;
             newConvertedTf[tfName] = {
                 toolchain_id: `\${ibm_cd_toolchain.${newTcId}.id}`,
+                name: t['name'],
                 initialization: [{
                     auto_init: 'false',
                     blind_connection: 'false',
@@ -283,6 +286,46 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
                         // do nothing
                     }
                 }
+            }
+        }
+
+        // add references to converted GHE integrations
+        if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_property') {
+            for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'])) {
+                try {
+                    if (v['type'] === 'integration') {
+                        const thisValue = v['value'];
+
+                        if (thisValue in toolIdToTfName) {
+                            const thisTfName = toolIdToTfName[thisValue];
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
+                        }
+                    }
+                }
+                catch {
+                    // do nothing
+                }
+
+            }
+        }
+
+        // add references to converted GHE integrations
+        if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_trigger_property') {
+            for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'])) {
+                try {
+                    if (v['type'] === 'integration') {
+                        const thisValue = v['value'];
+
+                        if (thisValue in toolIdToTfName) {
+                            const thisTfName = toolIdToTfName[thisValue];
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
+                        }
+                    }
+                }
+                catch {
+                    // do nothing
+                }
+
             }
         }
 
