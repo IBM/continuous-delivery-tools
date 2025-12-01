@@ -115,7 +115,7 @@ The `copy-toolchain` command copies a [toolchain](https://cloud.ibm.com/docs/Con
 
 IBM Cloud resources are uniquely identified by a [Cloud Resource Name (CRN)](https://cloud.ibm.com/docs/account?topic=account-crn). You will need the CRN of the toolchain you want to copy. You can get the CRN of a toolchain a few ways:
 
-1. Locate the toolchain in the [Platform Automation](https://cloud.ibm.com/automation) > [Toolchains](https://cloud.ibm.com/automation/toolchains) page or the [Resource list](https://cloud.ibm.com/resources), open the toolchain, and click **Details** to see the toolchain details, which shows the CRN.
+1. Locate the toolchain in the [Platform Automation](https://cloud.ibm.com/automation) > [Toolchains](https://cloud.ibm.com/automation/toolchains) page, open the toolchain, and click **Details** to see the toolchain details, which shows the CRN.
 2. Locate the toolchain in the [Resource list](https://cloud.ibm.com/resources) page, click on the toolchain row to expand the details panel, which shows the CRN.
 3. Using the [ibmcloud cli](https://cloud.ibm.com/docs/cli?topic=cli-getting-started), you can list toolchains and their CRNs via
 ```shell-session
