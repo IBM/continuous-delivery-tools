@@ -18,7 +18,7 @@ import { getRandChars, isSecretReference, normalizeName } from './utils.js';
 
 import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
-export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, policyIds, dir, isCompact, verbosity) {
+export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, dir, isCompact, verbosity) {
     // STEP 1/2: set up terraform file with import blocks
     const importBlocks = []; // an array of objects representing import blocks, used in importBlocksToTf
     const additionalProps = {}; // maps resource name to array of { property/param, value }, used to override terraform import
@@ -41,6 +41,14 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     const toolchainResName = block.name;
     let pipelineResName;
 
+    const requiresS2S = [
+        'ibm_cd_toolchain_tool_appconfig',
+        'ibm_cd_toolchain_tool_eventnotifications',
+        'ibm_cd_toolchain_tool_keyprotect',
+        'ibm_cd_toolchain_tool_secretsmanager'
+    ];
+    let s2sAuthTools = [];
+
     // get list of tools
     const allTools = await getToolchainTools(token, toolchainId, region);
     for (const tool of allTools.tools) {
@@ -54,6 +62,10 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             pipelineResName = block.name; // used below
 
             toolIdMap[tool.id] = { type: SUPPORTED_TOOLS_MAP[tool.tool_type_id], name: toolResName };
+
+            if (requiresS2S.includes(SUPPORTED_TOOLS_MAP[tool.tool_type_id])) {
+                s2sAuthTools.push(tool);
+            }
 
             // overwrite hard-coded id with reference
             additionalProps[block.name] = [
@@ -136,19 +148,6 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     ];
                 });
             });
-        }
-    }
-
-    // include s2s
-    if (policyIds) {
-        for (const policyId of policyIds) {
-            block = importBlock(policyId, 'iam_authorization_policy', 'ibm_iam_authorization_policy');
-            importBlocks.push(block);
-
-            // overwrite hard-coded id with reference
-            additionalProps[block.name] = [
-                { property: 'source_resource_instance_id', value: `\${ibm_cd_toolchain.${toolchainResName}.id}` },
-            ];
         }
     }
 
@@ -313,7 +312,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     // remove draft
     if (fs.existsSync(`${dir}/generated/draft.tf`)) fs.rmSync(`${dir}/generated/draft.tf`, { recursive: true });
 
-    return nonSecretRefs;
+    return [toolchainResName, nonSecretRefs, s2sAuthTools];
 }
 
 // objects have two keys, "id" and "to"

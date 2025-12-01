@@ -373,27 +373,6 @@ async function getGritGroupProject(privToken, region, groupId, projectName) {
     }
 }
 
-async function getIamAuthPolicies(bearer, accountId) {
-    const apiBaseUrl = 'https://iam.cloud.ibm.com/v1';
-    const options = {
-        url: apiBaseUrl + '/policies',
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${bearer}`,
-            'Content-Type': 'application/json',
-        },
-        params: { account_id: accountId, type: 'authorization' },
-        validateStatus: () => true
-    };
-    const response = await axios(options);
-    switch (response.status) {
-        case 200:
-            return response.data;
-        default:
-            throw Error('Get auth policies failed');
-    }
-}
-
 async function deleteToolchain(bearer, toolchainId, region) {
     const apiBaseUrl = `https://api.${region}.devops.cloud.ibm.com/toolchain/v2`;
     const options = {
@@ -430,6 +409,5 @@ export {
     getGritUserProject,
     getGritGroup,
     getGritGroupProject,
-    getIamAuthPolicies,
     deleteToolchain
 }
