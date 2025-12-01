@@ -22,6 +22,8 @@ import { importTerraform } from './utils/import-terraform.js';
 
 import { COPY_TOOLCHAIN_DESC, DOCS_URL, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
+import packageJson from '../package.json' with { type: "json" };
+
 process.on('exit', (code) => {
 	if (code !== 0) logger.print(`Need help? Visit ${DOCS_URL} for more troubleshooting information.`);
 });
@@ -98,6 +100,7 @@ async function main(options) {
 	// Validate arguments are valid and check if Terraform is installed appropriately
 	try {
 		validatePrereqsVersions();
+    	logger.info(`\x1b[32m✔\x1b[0m cd-tools Version:  ${packageJson.version}`, LOG_STAGES.setup);
 
 		if (!apiKey) apiKey = parseEnvVar('IBMCLOUD_API_KEY');
 		bearer = await getBearerToken(apiKey);
