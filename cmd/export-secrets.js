@@ -69,7 +69,7 @@ async function main(options) {
         logger.print(`Name: ${toolchainData.name}\nRegion: ${region}\nResource Group ID: ${toolchainData.resource_group_id}\nURL:https://${CLOUD_PLATFORM}/devops/toolchains/${toolchainId}?env_id=ibm:yp:${region}\n`);
 
         // Check for plain-text secrets in all tools
-        const checkSecrets = async () => {
+        const exportSecrets = async () => {
             const getToolsRes = await getToolchainTools(bearer, toolchainId, region);
             tools = getToolsRes.tools;
 
@@ -135,7 +135,7 @@ async function main(options) {
             };
         };
 
-        await logger.withSpinner(checkSecrets, `Checking secrets for toolchain ${toolchainCrn}`, 'Secret check complete!');
+        await logger.withSpinner(exportSecrets, `Checking secrets for toolchain ${toolchainCrn}`, 'Secret check complete!');
 
         const numTotalSecrets = toolResults.length + pipelineResults.length;
         if (numTotalSecrets > 0) {

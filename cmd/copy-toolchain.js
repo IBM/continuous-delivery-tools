@@ -24,10 +24,6 @@ import { COPY_TOOLCHAIN_DESC, TARGET_REGIONS, SOURCE_REGIONS } from '../config.j
 
 import packageJson from '../package.json' with { type: "json" };
 
-process.on('exit', (code) => {
-	if (code !== 0) logger.print(`Need help? Visit ${DOCS_URL} for more troubleshooting information.`);
-});
-
 const TIME_SUFFIX = new Date().getTime();
 const LOGS_DIR = '.logs';
 const TEMP_DIR = '.migration-temp-' + TIME_SUFFIX;

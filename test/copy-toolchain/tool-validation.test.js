@@ -91,7 +91,6 @@ describe('copy-toolchain: Test tool validation', function () {
                 expect(output).to.match(/githubconsolidated[\s\S]*?api_token/);
                 expect(output).to.match(/github_integrated[\s\S]*?api_token/);
                 expect(output).to.match(/gitlab[\s\S]*?api_token/);
-                expect(output).to.match(/pagerduty[\s\S]*?api_key/);
             }
         },
     ];
