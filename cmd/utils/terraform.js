@@ -67,7 +67,7 @@ async function initProviderFile(targetRegion, dir) {
     return writeFilePromise(`${dir}/provider.tf`, jsonToTf(newProviderTfStr));
 }
 
-async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, targetToolchainName, targetRgId, disableTriggers, isCompact, outputDir, tempDir, moreTfResources, gritMapping, skipUserConfirmation }) {
+async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, targetToolchainName, targetRgId, disableTriggers, isCompact, outputDir, tempDir, moreTfResources, gritMapping, skipUserConfirmation, includeS2S }) {
     const promises = [];
 
     const writeProviderPromise = await initProviderFile(targetRegion, outputDir);
@@ -109,6 +109,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
     // for converting legacy GHE tool integrations
     const hasGHE = moreTfResources['github_integrated'].length > 0;
     const repoToTfName = {};
+    const toolIdToTfName = {};
     const newConvertedTf = {};
 
     if (hasGHE) {
@@ -117,8 +118,10 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
             const tfName = `converted--githubconsolidated_${getRandChars(4)}`;
 
             repoToTfName[gitUrl] = tfName;
+            toolIdToTfName[t['id']] = tfName;
             newConvertedTf[tfName] = {
                 toolchain_id: `\${ibm_cd_toolchain.${newTcId}.id}`,
+                name: t['name'],
                 initialization: [{
                     auto_init: 'false',
                     blind_connection: 'false',
@@ -220,8 +223,9 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
 
         if (isCompact || resourceName === 'ibm_cd_toolchain') {
             if (targetTag) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['tags'] = [
-                ...newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['tags'] ?? [],
-                targetTag
+                Array.from(new Set( // uniqueness
+                    (newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['tags'] ?? []).concat([targetTag])
+                ))
             ];
             if (targetToolchainName) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] = targetToolchainName;
             if (targetRgId) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['resource_group_id'] = targetRgId;
@@ -303,6 +307,46 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
             }
         }
 
+        // add references to converted GHE integrations
+        if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_property') {
+            for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'])) {
+                try {
+                    if (v['type'] === 'integration') {
+                        const thisValue = v['value'];
+
+                        if (thisValue in toolIdToTfName) {
+                            const thisTfName = toolIdToTfName[thisValue];
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
+                        }
+                    }
+                }
+                catch {
+                    // do nothing
+                }
+
+            }
+        }
+
+        // add references to converted GHE integrations
+        if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_trigger_property') {
+            for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'])) {
+                try {
+                    if (v['type'] === 'integration') {
+                        const thisValue = v['value'];
+
+                        if (thisValue in toolIdToTfName) {
+                            const thisTfName = toolIdToTfName[thisValue];
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
+                        }
+                    }
+                }
+                catch {
+                    // do nothing
+                }
+
+            }
+        }
+
         if (isCompact || resourceName === 'ibm_cd_toolchain_tool_githubconsolidated') {
             if (hasGHE) {
                 newTfFileObj['resource']['ibm_cd_toolchain_tool_githubconsolidated'] = {
@@ -313,7 +357,8 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
         }
 
         const newTfFileObjStr = JSON.stringify(newTfFileObj);
-        const newTfFile = replaceDependsOn(jsonToTf(newTfFileObjStr));
+        let newTfFile = replaceDependsOn(jsonToTf(newTfFileObjStr));
+        if (includeS2S && (isCompact || resourceName === 'ibm_cd_toolchain')) newTfFile = addS2sScriptToToolchainTf(newTfFile);
         const copyResourcesPromise = writeFilePromise(`${outputDir}/${fileName}`, newTfFile);
         promises.push(copyResourcesPromise);
     }
@@ -356,10 +401,13 @@ async function getNumResourcesPlanned(dir) {
     };
 }
 
-async function runTerraformApply(skipTfConfirmation, outputDir, verbosity) {
+async function runTerraformApply(skipTfConfirmation, outputDir, verbosity, target) {
     let command = 'terraform apply';
     if (skipTfConfirmation || verbosity === 0) {
         command = 'terraform apply -auto-approve';
+    }
+    if (target) {
+        command += ` -target="${target}"`
     }
 
     const child = child_process.spawn(command, {
@@ -434,6 +482,25 @@ function replaceDependsOn(str) {
 
             // get rid of the quotes
             return str.replaceAll(pattern, (match, s) => `  depends_on = \[\n    ${s.slice(1, s.length - 1)}\n  ]`);
+        }
+    } catch {
+        return str;
+    }
+}
+
+function addS2sScriptToToolchainTf(str) {
+    const provisionerStr = (tfName) => `\n\n  provisioner "local-exec" {
+    command = "node create-s2s-script.js"
+    environment = {
+      IBMCLOUD_API_KEY = var.ibmcloud_api_key
+      TARGET_TOOLCHAIN_ID = ibm_cd_toolchain.${tfName}.id
+    }\n  }`
+    try {
+        if (typeof str === 'string') {
+            const pattern = /^resource "ibm_cd_toolchain" "([a-z0-9_-]*)" \{$\n((.|\n)*)\n^\}$/gm;
+
+            // get rid of the quotes
+            return str.replace(pattern, (match, s1, s2) => `resource "ibm_cd_toolchain" "${s1}" {\n${s2}${provisionerStr(s1)}\n}`);
         }
     } catch {
         return str;

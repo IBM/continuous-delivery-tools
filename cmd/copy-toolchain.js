@@ -8,7 +8,7 @@
  */
 
 import { exit } from 'node:process';
-import { resolve } from 'node:path'
+import { resolve } from 'node:path';
 import fs from 'node:fs';
 
 import { Command, Option } from 'commander';
@@ -16,12 +16,17 @@ import { Command, Option } from 'commander';
 import { parseEnvVar } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { setTerraformEnv, initProviderFile, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
-import { getAccountId, getBearerToken, getCdInstanceByRegion, getIamAuthPolicies, getResourceGroups, getToolchain } from './utils/requests.js';
+import { getAccountId, getBearerToken, getCdInstanceByRegion, getResourceGroups, getToolchain } from './utils/requests.js';
 import { validatePrereqsVersions, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
 import { importTerraform } from './utils/import-terraform.js';
 
 import { COPY_TOOLCHAIN_DESC, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
+import packageJson from '../package.json' with { type: "json" };
+
+process.on('exit', (code) => {
+	if (code !== 0) logger.print(`Need help? Visit ${DOCS_URL} for more troubleshooting information.`);
+});
 
 const TIME_SUFFIX = new Date().getTime();
 const LOGS_DIR = '.logs';
@@ -52,7 +57,7 @@ const command = new Command('copy-toolchain')
 	.option('-d, --terraform-dir <path>', '(Optional) The target local directory to store the generated Terraform (.tf) files')
 	.option('-D, --dry-run', '(Optional) Skip running terraform apply; only generate the Terraform (.tf) files')
 	.option('-f, --force', '(Optional) Force the copy toolchain command to run without user confirmation')
-	.option('-S, --skip-s2s', '(Optional) Skip importing toolchain-generated service-to-service authorizations')
+	.option('-S, --skip-s2s', '(Optional) Skip creating toolchain-generated service-to-service authorizations')
 	.option('-T, --skip-disable-triggers', '(Optional) Skip disabling Tekton pipeline Git or timed triggers. Note: This may result in duplicate pipeline runs')
 	.option('-C, --compact', '(Optional) Generate all resources in a single resources.tf file')
 	.option('-v, --verbose', '(Optional) Increase log output')
@@ -90,13 +95,13 @@ async function main(options) {
 	let targetRgId;
 	let targetRgName;
 	let apiKey = options.apikey;
-	let policyIds; // used to include s2s auth policies
 	let moreTfResources = {};
 	let gritMapping = {};
 
 	// Validate arguments are valid and check if Terraform is installed appropriately
 	try {
 		validatePrereqsVersions();
+    	logger.info(`\x1b[32m✔\x1b[0m cd-tools Version:  ${packageJson.version}`, LOG_STAGES.setup);
 
 		if (!apiKey) apiKey = parseEnvVar('IBMCLOUD_API_KEY');
 		bearer = await getBearerToken(apiKey);
@@ -193,26 +198,6 @@ async function main(options) {
 
 		collectGHE();
 
-		const collectPolicyIds = async () => {
-			moreTfResources['iam_authorization_policy'] = [];
-
-			const res = await getIamAuthPolicies(bearer, accountId);
-
-			policyIds = res['policies'].filter((p) => p.subjects[0].attributes.find(
-				(a) => a.name === 'serviceInstance' && a.value === sourceToolchainId)
-			);
-			policyIds = policyIds.map((p) => p.id);
-		};
-
-		if (includeS2S) {
-			try {
-				collectPolicyIds();
-			} catch (e) {
-				logger.error('Something went wrong while fetching service-to-service auth policies', LOG_STAGES.setup);
-				throw e;
-			}
-		}
-
 		logger.info('Arguments and required packages verified, proceeding with copying toolchain...', LOG_STAGES.setup);
 
 		// Set up temp folder
@@ -229,6 +214,9 @@ async function main(options) {
 		exit(1);
 	}
 
+	let toolchainTfName; // to target creating toolchain first
+	let s2sAuthTools; // to create s2s auth with script
+
 	try {
 		let nonSecretRefs;
 
@@ -240,7 +228,7 @@ async function main(options) {
 			await initProviderFile(sourceRegion, TEMP_DIR);
 			await runTerraformInit(TEMP_DIR, verbosity);
 
-			nonSecretRefs = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, targetToolchainName, policyIds, TEMP_DIR, isCompact, verbosity);
+			[toolchainTfName, nonSecretRefs, s2sAuthTools] = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, targetToolchainName, TEMP_DIR, isCompact, verbosity);
 		};
 
 		await logger.withSpinner(
@@ -284,7 +272,8 @@ async function main(options) {
 			tempDir: TEMP_DIR,
 			moreTfResources: moreTfResources,
 			gritMapping: gritMapping,
-			skipUserConfirmation: skipUserConfirmation
+			skipUserConfirmation: skipUserConfirmation,
+			includeS2S: includeS2S
 		});
 	} catch (err) {
 		if (err.message && err.stack) {
@@ -315,6 +304,27 @@ async function main(options) {
 
 			let applyErrors = false;
 
+			if (includeS2S) {
+				const s2sRequests = s2sAuthTools.map((item) => {
+					return {
+						parameters: item['parameters'],
+						serviceId: item.tool_type_id,
+						env_id: `ibm:yp:${targetRegion}`
+					};
+				});
+				fs.writeFileSync(resolve(`${outputDir}/create-s2s.json`), JSON.stringify(s2sRequests));
+
+				// copy script
+				fs.copyFileSync(resolve('create-s2s-script.js'), resolve(`${outputDir}/create-s2s-script.js`), fs.constants.COPYFILE_EXCL);
+			}
+
+			// create toolchain, which invokes script to create s2s if applicable
+			await runTerraformApply(true, outputDir, verbosity, `ibm_cd_toolchain.${toolchainTfName}`).catch((err) => {
+				logger.error(err, LOG_STAGES.tf);
+				applyErrors = true;
+			});
+
+			// create the rest
 			await runTerraformApply(skipUserConfirmation, outputDir, verbosity).catch((err) => {
 				logger.error(err, LOG_STAGES.tf);
 				applyErrors = true;
