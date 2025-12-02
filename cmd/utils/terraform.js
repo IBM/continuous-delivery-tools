@@ -21,6 +21,7 @@ import { getRandChars, promptUserInput, replaceUrlRegion } from './utils.js';
 const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
 const GIT_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_GIT_URL'] : '';
+const IAM_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_IAM_API_ENDPOINT'] : 'https://iam.cloud.ibm.com';
 
 // promisify
 const readFilePromise = promisify(fs.readFile);
@@ -494,6 +495,8 @@ function addS2sScriptToToolchainTf(str) {
     environment = {
       IBMCLOUD_API_KEY = var.ibmcloud_api_key
       TARGET_TOOLCHAIN_ID = ibm_cd_toolchain.${tfName}.id
+      IBMCLOUD_PLATFORM = "${CLOUD_PLATFORM}"
+      IAM_BASE_URL = "${IAM_BASE_URL}"
     }\n  }`
     try {
         if (typeof str === 'string') {

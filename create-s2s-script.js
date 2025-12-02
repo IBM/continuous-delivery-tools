@@ -16,9 +16,13 @@ if (!API_KEY) throw Error(`Missing 'IBMCLOUD_API_KEY'`);
 const TC_ID = process.env['TARGET_TOOLCHAIN_ID'];
 if (!TC_ID) throw Error(`Missing 'TARGET_TOOLCHAIN_ID'`);
 
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM'];
+if (!CLOUD_PLATFORM) throw Error(`Missing 'IBMCLOUD_PLATFORM'`);
+
+const IAM_BASE_URL = process.env['IAM_BASE_URL'];
+if (!IAM_BASE_URL) throw Error(`Missing 'IAM_BASE_URL'`);
+
 const INPUT_PATH = 'create-s2s.json';
-const CLOUD_PLATFORM = 'https://cloud.ibm.com';
-const IAM_BASE_URL = 'https://iam.cloud.ibm.com';
 
 async function getBearer() {
     const url = `${IAM_BASE_URL}/identity/token`;
@@ -69,7 +73,7 @@ async function getBearer() {
 */
 
 async function createS2sAuthPolicy(item) {
-    const url = `${CLOUD_PLATFORM}/devops/setup/api/v2/s2s_authorization?${new URLSearchParams({
+    const url = `https://${CLOUD_PLATFORM}/devops/setup/api/v2/s2s_authorization?${new URLSearchParams({
         toolchainId: TC_ID,
         serviceId: item['serviceId'],
         env_id: item['env_id']

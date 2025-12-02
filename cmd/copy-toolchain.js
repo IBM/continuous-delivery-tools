@@ -101,7 +101,7 @@ async function main(options) {
 	// Validate arguments are valid and check if Terraform is installed appropriately
 	try {
 		validatePrereqsVersions();
-    	logger.info(`\x1b[32m✔\x1b[0m cd-tools Version:  ${packageJson.version}`, LOG_STAGES.setup);
+		logger.info(`\x1b[32m✔\x1b[0m cd-tools Version:  ${packageJson.version}`, LOG_STAGES.setup);
 
 		if (!apiKey) apiKey = parseEnvVar('IBMCLOUD_API_KEY');
 		bearer = await getBearerToken(apiKey);
