@@ -123,6 +123,7 @@ async function main(options) {
                                         'Pipeline ID': pipelineData.id,
                                         'Pipeline Name': toolName,
                                         'Trigger Name': trigger.name,
+                                        'Trigger ID': trigger.id,
                                         'Property Name': prop.name,
                                         'Url': pipelineBaseUrl + `?env_id=ibm:yp:${region}`
                                     });
@@ -146,12 +147,12 @@ async function main(options) {
             logger.print();
             logger.print('The following plain text properties were found in tool integrations bound to the toolchain:');
             logger.table(toolResults, 'Url');
-        };
+        }
         if (pipelineResults.length > 0) {
             logger.print();
             logger.print('The following plain text properties were found in Tekton pipeline(s) bound to the toolchain:');
-            logger.table(pipelineResults, 'Url');
-        };
+            logger.table(pipelineResults, 'Url', ['Trigger ID']);
+        }
         if (numTotalSecrets > 0 && !runMigration) {
             logger.warn(`\nNote: ${numTotalSecrets} locally stored secret(s) found!\nSecrets stored locally in Toolchains and Pipelines will not be exported when copying a toolchain. It is recommended that secrets be moved to a Secrets Manager instance and converted to secret references if these secrets are required.`);
             logger.warn(`\nTo migrate secrets to Secrets Manager, ensure that you have provisioned an instance of Secrets Manager which you have write access to and rerun the command without the additional param '--check' to move the secrets into Secrets Manager.`)
@@ -159,12 +160,6 @@ async function main(options) {
 
         // Facilitate Secrets Migration
         const migrateSecrets = async () => {
-            // TODO: Remove this once pipeline secrets migration is supported
-            if (toolResults.length === 0) {
-                logger.warn('Secret migration for pipeline secrets is currently not supported. Please migrate these secrets manually prior to copying the toolchain.');
-                return;
-            }
-
             accountId = await getAccountId(bearer, apiKey);
 
             let allSmInstances = await getSmInstances(bearer, accountId);
@@ -240,25 +235,28 @@ async function main(options) {
                 }
             }
 
-            // TODO: Support pipeline secrets migration once 'otc-api' 'export_secret' endpoint supports it
             let numSecretsMigrated = 0;
-            for (let i = 0; i < toolResults.length; i++) {
+            const allSecrets = toolResults.concat(pipelineResults);
+            for (let i = 0; i < allSecrets.length; i++) {
                 logger.print('-------');
-                const secret = toolResults[i];
-                const toolName = secret['Tool Name'];
-                const toolType = secret['Tool Type'];
-                const toolId = secret['Tool ID'];
+                const secret = allSecrets[i];
+                const toolName = secret['Tool Name'] || secret['Pipeline Name'];
+                const toolType = secret['Tool Type'] || 'pipeline';
+                const toolId = secret['Tool ID'] || secret['Pipeline ID'];
+                const triggerId = secret['Trigger ID'];
+                const triggerName = secret['Trigger Name'];
                 const toolSecretKey = secret['Property Name'];
                 const toolSecretUrl = secret['Url'];
+                const secretPath = `${toolName || toolType}.${triggerName ? triggerName + '.' : ''}${toolSecretKey}`;
 
-                logger.print(`[${i + 1}]\n    Tool integration: ${toolName !== '' ? `'${toolName}' (${toolType})` : toolType}\n    Property: '${toolSecretKey}'\n    URL: ${toolSecretUrl}\n`);
+                logger.print(`[${i + 1}]\n    Tool integration: ${toolName ? `'${toolName}' (${toolType})` : toolType}\n    Property: '${triggerName ? triggerName + '.' : ''}${toolSecretKey}'\n    URL: ${toolSecretUrl}\n`);
 
                 const shouldMigrateSecret = await promptUserYesNo(`Migrate this secret to Secrets Manager instance '${smInstance.name}'?`);
                 if (!shouldMigrateSecret) {
                     continue;
                 }
 
-                const smSecretName = await promptUserInput(`Enter the name of the secret to create [${toolName || toolType}.${toolSecretKey}]: `, '', async (input) => {
+                const smSecretName = await promptUserInput(`Enter the name of the secret to create [${secretPath}]: `, '', async (input) => {
                     if (input.length < 2 || input.length > 256) {
                         throw new Error('The secret name must be between 2 and 256 characters long.');
                     }
@@ -279,26 +277,33 @@ async function main(options) {
                 });
 
                 try {
-                    const smSecretUrl = await migrateToolchainSecrets(bearer, {
+                    const commonProps = {
                         toolchain_id: toolchainId,
-                        source: {
-                            type: "tool",
-                            id: toolId,
-                            secret_key: toolSecretKey
-                        },
                         destination: {
-                            is_private: false,  // TODO: set this back to 'true' once 'otc-api' has the 'export_secret' endpoint, should always use SM private endpoint
+                            is_private: false, // TODO: set this back to 'true' once 'otc-api' has the 'export_secret' endpoint, should always use SM private endpoint
                             is_production: CLOUD_PLATFORM === 'cloud.ibm.com',
                             secrets_manager_crn: smInstance.crn,
                             secret_name: smSecretName,
                             secret_group_id: smSecretGroupId
                         }
-                    });
+                    };
+                    const payload = {
+                        source: {
+                            type: toolType,
+                            id: toolType === 'pipeline' ? (triggerId || toolId) : toolId,
+                            secret_key: toolSecretKey,
+                            kind: toolType === 'pipeline' ? (triggerId ? 'trigger' : 'env') : undefined,
+                            parent_id: toolType === 'pipeline' ? (triggerId ? toolId : undefined) : undefined
+                        },
+                        ...commonProps
+                    };
+
+                    const smSecretUrl = await migrateToolchainSecrets(bearer, payload);
                     logger.success(`Secret successfully migrated!\nSecret URL: ${smSecretUrl}`);
                     numSecretsMigrated += 1;
                 }
                 catch (e) {
-                    logger.error(`Failed to migrate secret '${toolName || toolType}.${toolSecretKey}'. Error message: ${e.message}`, '', true);
+                    logger.error(`Failed to migrate secret '${secretPath}'. Error message: ${e.message}`, '', true);
                 }
             }
             logger.success(`Toolchain secrets migration complete, ${numSecretsMigrated} secret(s) successfully migrated.`);
