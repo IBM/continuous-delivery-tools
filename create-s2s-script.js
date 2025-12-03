@@ -7,8 +7,8 @@
  * Contract with IBM Corp.
  */
 
-import fs from 'node:fs';
-import { resolve } from 'node:path';
+const fs = require('node:fs');
+const { resolve } = require('node:path');
 
 const API_KEY = process.env['IBMCLOUD_API_KEY'];
 if (!API_KEY) throw Error(`Missing 'IBMCLOUD_API_KEY'`);
