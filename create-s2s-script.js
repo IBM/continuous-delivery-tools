@@ -68,7 +68,7 @@ async function getBearer() {
 }
 */
 
-async function createS2sAuthPolicy(item) {
+async function createS2sAuthPolicy(bearer, item) {
     const url = `${CLOUD_PLATFORM}/devops/setup/api/v2/s2s_authorization?${new URLSearchParams({
         toolchainId: TC_ID,
         serviceId: item['serviceId'],
@@ -110,10 +110,10 @@ async function createS2sAuthPolicy(item) {
 
 // main
 
-const bearer = await getBearer();
+getBearer().then((bearer) => {
+    const inputArr = JSON.parse(fs.readFileSync(resolve(INPUT_PATH)));
 
-const inputArr = JSON.parse(fs.readFileSync(resolve(INPUT_PATH)));
-
-inputArr.forEach(async (item) => {
-    await createS2sAuthPolicy(item);
+    inputArr.forEach(async (item) => {
+        await createS2sAuthPolicy(bearer, item);
+    });
 });
