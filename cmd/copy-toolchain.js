@@ -318,7 +318,7 @@ async function main(options) {
 
 				// copy script
 				const s2sScript = fs.readFileSync(resolve(__dirname, '../create-s2s-script.js'));
-				fs.writeFileSync(resolve(`${outputDir}/create-s2s-script.js`), s2sScript);
+				fs.writeFileSync(resolve(`${outputDir}/create-s2s-script.cjs`), s2sScript);
 			}
 
 			// create toolchain, which invokes script to create s2s if applicable

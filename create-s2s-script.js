@@ -16,10 +16,10 @@ if (!API_KEY) throw Error(`Missing 'IBMCLOUD_API_KEY'`);
 const TC_ID = process.env['TARGET_TOOLCHAIN_ID'];
 if (!TC_ID) throw Error(`Missing 'TARGET_TOOLCHAIN_ID'`);
 
-const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM'];
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM'] || 'cloud.ibm.com';
 if (!CLOUD_PLATFORM) throw Error(`Missing 'IBMCLOUD_PLATFORM'`);
 
-const IAM_BASE_URL = process.env['IAM_BASE_URL'];
+const IAM_BASE_URL = process.env['IAM_BASE_URL'] || 'https://iam.cloud.ibm.com';
 if (!IAM_BASE_URL) throw Error(`Missing 'IAM_BASE_URL'`);
 
 const INPUT_PATH = 'create-s2s.json';

@@ -289,7 +289,7 @@ async function main(options) {
                     };
                     const payload = {
                         source: {
-                            type: toolType,
+                            type: 'tool',
                             id: toolType === 'pipeline' ? (triggerId || toolId) : toolId,
                             secret_key: toolSecretKey,
                             kind: toolType === 'pipeline' ? (triggerId ? 'trigger' : 'env') : undefined,
