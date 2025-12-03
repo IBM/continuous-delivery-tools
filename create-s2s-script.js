@@ -7,8 +7,8 @@
  * Contract with IBM Corp.
  */
 
-import fs from 'node:fs';
-import { resolve } from 'node:path';
+const fs = require('node:fs');
+const { resolve } = require('node:path');
 
 const API_KEY = process.env['IBMCLOUD_API_KEY'];
 if (!API_KEY) throw Error(`Missing 'IBMCLOUD_API_KEY'`);
@@ -72,7 +72,7 @@ async function getBearer() {
 }
 */
 
-async function createS2sAuthPolicy(item) {
+async function createS2sAuthPolicy(bearer, item) {
     const url = `https://${CLOUD_PLATFORM}/devops/setup/api/v2/s2s_authorization?${new URLSearchParams({
         toolchainId: TC_ID,
         serviceId: item['serviceId'],
@@ -114,10 +114,10 @@ async function createS2sAuthPolicy(item) {
 
 // main
 
-const bearer = await getBearer();
+getBearer().then((bearer) => {
+    const inputArr = JSON.parse(fs.readFileSync(resolve(INPUT_PATH)));
 
-const inputArr = JSON.parse(fs.readFileSync(resolve(INPUT_PATH)));
-
-inputArr.forEach(async (item) => {
-    await createS2sAuthPolicy(item);
+    inputArr.forEach(async (item) => {
+        await createS2sAuthPolicy(bearer, item);
+    });
 });

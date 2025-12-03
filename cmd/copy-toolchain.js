@@ -8,7 +8,13 @@
  */
 
 import { exit } from 'node:process';
-import { resolve } from 'node:path';
+
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 import fs from 'node:fs';
 
 import { Command, Option } from 'commander';
@@ -311,7 +317,8 @@ async function main(options) {
 				fs.writeFileSync(resolve(`${outputDir}/create-s2s.json`), JSON.stringify(s2sRequests));
 
 				// copy script
-				fs.copyFileSync(resolve('create-s2s-script.js'), resolve(`${outputDir}/create-s2s-script.js`), fs.constants.COPYFILE_EXCL);
+				const s2sScript = fs.readFileSync(resolve(__dirname, '../create-s2s-script.js'));
+				fs.writeFileSync(resolve(`${outputDir}/create-s2s-script.js`), s2sScript);
 			}
 
 			// create toolchain, which invokes script to create s2s if applicable
