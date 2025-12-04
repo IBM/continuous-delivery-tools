@@ -298,7 +298,7 @@ async function main(options) {
                         ...commonProps
                     };
 
-                    const smSecretUrl = await migrateToolchainSecrets(bearer, payload);
+                    const smSecretUrl = await migrateToolchainSecrets(bearer, payload, region);
                     logger.success(`Secret successfully migrated!\nSecret URL: ${smSecretUrl}`);
                     numSecretsMigrated += 1;
                 }

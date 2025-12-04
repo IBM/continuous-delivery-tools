@@ -455,7 +455,7 @@ async function createTool(bearer, toolchainId, region, params) {
     }
 }
 
-async function migrateToolchainSecrets(bearer, data) {
+async function migrateToolchainSecrets(bearer, data, region) {
     const apiBaseUrl = DEV_MODE ? OTC_BASE_ENDPOINT : `https://otc-api.${region}.devops.cloud.ibm.com/api/v1`;
     const options = {
         method: 'POST',
