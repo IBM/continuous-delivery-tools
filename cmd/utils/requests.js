@@ -21,6 +21,7 @@ const DEVOPS_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_DEVOPS_URL'] : 'https:/
 const TOOLCHAIN_BASE_ENDPOINT = DEV_MODE ? process.env['IBMCLOUD_TOOLCHAIN_ENDPOINT'] : '';
 const PIPELINE_BASE_ENDPOINT = DEV_MODE ? process.env['IBMCLOUD_TEKTON_PIPELINE_ENDPOINT'] : '';
 const GIT_BASE_ENDPOINT = DEV_MODE ? process.env['IBMCLOUD_GIT_ENDPOINT'] : '';
+const OTC_BASE_ENDPOINT = DEV_MODE ? process.env['IBMCLOUD_OTC_ENDPOINT'] : '';
 
 const MOCK_ALL_REQUESTS = process.env.MOCK_ALL_REQUESTS === 'true' || 'false';
 
@@ -455,9 +456,7 @@ async function createTool(bearer, toolchainId, region, params) {
 }
 
 async function migrateToolchainSecrets(bearer, data) {
-    const apiBaseUrl = DEV_MODE ?
-        `http://localhost:3400/api/v2` :    // TODO Update this when endpoint is in dev
-        `https://api.${region}.devops.cloud.ibm.com/toolchain/v2`;
+    const apiBaseUrl = DEV_MODE ? OTC_BASE_ENDPOINT : `https://otc-api.${region}.devops.cloud.ibm.com/api/v1`;
     const options = {
         method: 'POST',
         url: `${apiBaseUrl}/export_secret`,
