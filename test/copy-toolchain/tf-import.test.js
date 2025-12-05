@@ -43,12 +43,12 @@ describe('copy-toolchain: Test import-terraform output', function () {
                     ibm_cd_tekton_pipeline_trigger: 1,
                     ibm_cd_tekton_pipeline_trigger_property: 1,
                     ibm_cd_toolchain: 1,
+                    ibm_cd_toolchain_tool_cos: 1,
                     ibm_cd_toolchain_tool_custom: 1,
                     ibm_cd_toolchain_tool_githubconsolidated: 1,
                     ibm_cd_toolchain_tool_pipeline: 1,
                     ibm_cd_toolchain_tool_secretsmanager: 1,
                     ibm_cd_toolchain_tool_slack: 1,
-                    ibm_iam_authorization_policy: 1
                 });
             }
         },
@@ -68,12 +68,12 @@ describe('copy-toolchain: Test import-terraform output', function () {
                     ibm_cd_tekton_pipeline_trigger: 1,
                     ibm_cd_tekton_pipeline_trigger_property: 1,
                     ibm_cd_toolchain: 1,
+                    ibm_cd_toolchain_tool_cos: 1,
                     ibm_cd_toolchain_tool_custom: 1,
                     ibm_cd_toolchain_tool_githubconsolidated: 1,
                     ibm_cd_toolchain_tool_pipeline: 1,
                     ibm_cd_toolchain_tool_secretsmanager: 1,
                     ibm_cd_toolchain_tool_slack: 1,
-                    ibm_iam_authorization_policy: 1
                 });
             }
         },
@@ -99,7 +99,6 @@ describe('copy-toolchain: Test import-terraform output', function () {
                     ibm_cd_toolchain_tool_pipeline: 1,
                     ibm_cd_toolchain_tool_secretsmanager: 1,
                     ibm_cd_toolchain_tool_slack: 1,
-                    ibm_iam_authorization_policy: 1
                 })
             }
         },

@@ -37,10 +37,19 @@ describe('copy-toolchain: Test functionalities', function () {
     const testCases = [
         {
             name: 'Terraform Version Verification',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
             expected: /✔ Terraform Version:/,
             options: {
-                exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
+                exitCondition: `(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`,
+                timeout: 10000
+            }
+        },
+        {
+            name: 'CLI Version Verification',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
+            expected: /✔ cd-tools Version:/,
+            options: {
+                exitCondition: `(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`,
                 timeout: 10000
             }
         },
@@ -56,10 +65,10 @@ describe('copy-toolchain: Test functionalities', function () {
         },
         {
             name: 'Log file is created successfully',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
             expected: null,
             options: {
-                exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
+                exitCondition: `(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`,
                 timeout: 10000,
                 cwd: TEMP_DIR + '/' + 'log-file-is-created-successfully'
             },
@@ -79,15 +88,6 @@ describe('copy-toolchain: Test functionalities', function () {
                 const token = await getBearerToken(IBMCLOUD_API_KEY);
                 const toolchainData = await getToolchain(token, toolchainId, region);
                 assert.isTrue(toolchainData.id === toolchainId, 'Was toolchain created successfully without any confirmations?');
-            }
-        },
-        {
-            name: 'Prompt User when toolchain name already exists in resource group',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
-            expected: new RegExp(`Warning! A toolchain named \'${TEST_TOOLCHAINS['empty'].name}\' already exists in:[\\s\\S]*?Resource Group:[\\s\\S]*?${R2R_CLI_RG_ID}`),
-            options: {
-                exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
-                timeout: 10000
             }
         },
         {

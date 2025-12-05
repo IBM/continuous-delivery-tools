@@ -125,10 +125,13 @@ describe('copy-toolchain: Test user input handling', function () {
     const invalidUserInputCases = [
         {
             name: 'Invalid Toolchain tag is provided',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
             expected: /Provided tag is invalid/,
             options: {
-                questionAnswerMap: { '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': mocks.invalidTag },
+                questionAnswerMap: { 
+                    [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`]: '',
+                    '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': mocks.invalidTag
+                },
                 exitCondition: 'Validation failed',
                 timeout: 10000
             }
