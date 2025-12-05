@@ -3,7 +3,7 @@
     "TEST_TEMP_DIR": "test/.tmp",
     "TEST_LOG_DIR": "test/.logs",
     "IBMCLOUD_API_KEY": "<YOUR IBMCLOUD API KEY>",
-    "LOG_DUMP": true,
+    "LOG_DUMP": false,
     "DISABLE_SPINNER": true,
     "VERBOSE_MODE": false
 }

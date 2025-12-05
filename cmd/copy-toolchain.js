@@ -22,25 +22,22 @@ import { Command, Option } from 'commander';
 import { parseEnvVar } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { setTerraformEnv, initProviderFile, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
-import { getAccountId, getBearerToken, getCdInstanceByRegion, getResourceGroupIdAndName, getToolchain } from './utils/requests.js';
+import { getAccountId, getBearerToken, getCdInstanceByRegion, getResourceGroups, getToolchain } from './utils/requests.js';
 import { validatePrereqsVersions, validateTag, validateToolchainId, validateToolchainName, validateTools, validateOAuth, warnDuplicateName, validateGritUrl } from './utils/validate.js';
 import { importTerraform } from './utils/import-terraform.js';
 
-import { COPY_TOOLCHAIN_DESC, DOCS_URL, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
+import { COPY_TOOLCHAIN_DESC, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
 import packageJson from '../package.json' with { type: "json" };
-
-process.on('exit', (code) => {
-	if (code !== 0) logger.print(`Need help? Visit ${DOCS_URL} for more troubleshooting information.`);
-});
 
 const TIME_SUFFIX = new Date().getTime();
 const LOGS_DIR = '.logs';
 const TEMP_DIR = '.migration-temp-' + TIME_SUFFIX;
 const LOG_DUMP = process.env['LOG_DUMP'] === 'false' ? false : true;	// when true or not specified, logs are also written to a log file in LOGS_DIR
-const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true' ? true : false; // when true, temp folder is preserved
+const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true'; // when true, temp folder is preserved
 const OUTPUT_DIR = 'output-' + TIME_SUFFIX;
 const DRY_RUN = false; // when true, terraform apply does not run
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 
 
 const command = new Command('copy-toolchain')
@@ -106,7 +103,7 @@ async function main(options) {
 	// Validate arguments are valid and check if Terraform is installed appropriately
 	try {
 		validatePrereqsVersions();
-    	logger.info(`\x1b[32m✔\x1b[0m cd-tools Version:  ${packageJson.version}`, LOG_STAGES.setup);
+		logger.info(`\x1b[32m✔\x1b[0m cd-tools Version:  ${packageJson.version}`, LOG_STAGES.setup);
 
 		if (!apiKey) apiKey = parseEnvVar('IBMCLOUD_API_KEY');
 		bearer = await getBearerToken(apiKey);
@@ -163,8 +160,8 @@ async function main(options) {
 			exit(1);
 		}
 
-		({ id: targetRgId, name: targetRgName } = await getResourceGroupIdAndName(bearer, accountId, targetRg || sourceToolchainData['resource_group_id']));
-
+		const resourceGroups = await getResourceGroups(bearer, accountId, [targetRg || sourceToolchainData['resource_group_id']]);
+		({ id: targetRgId, name: targetRgName } = resourceGroups[0])
 		// reuse name if not provided
 		if (!targetToolchainName) targetToolchainName = sourceToolchainData['name'];
 		[targetToolchainName, targetTag] = await warnDuplicateName(bearer, accountId, targetToolchainName, sourceRegion, targetRegion, targetRgId, targetRgName, targetTag, skipUserConfirmation);
@@ -321,7 +318,7 @@ async function main(options) {
 
 				// copy script
 				const s2sScript = fs.readFileSync(resolve(__dirname, '../create-s2s-script.js'));
-				fs.writeFileSync(resolve(`${outputDir}/create-s2s-script.js`), s2sScript);
+				fs.writeFileSync(resolve(`${outputDir}/create-s2s-script.cjs`), s2sScript);
 			}
 
 			// create toolchain, which invokes script to create s2s if applicable
@@ -341,7 +338,7 @@ async function main(options) {
 
 			logger.print('\n');
 			logger.info(`Toolchain "${sourceToolchainData['name']}" from ${sourceRegion} was cloned to "${targetToolchainName ?? sourceToolchainData['name']}" in ${targetRegion} ${applyErrors ? 'with some errors' : 'successfully'}, with ${numResourcesCreated} / ${numResourcesPlanned} resources created!`, LOG_STAGES.info);
-			if (newTcId) logger.info(`See cloned toolchain: https://cloud.ibm.com/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
+			if (newTcId) logger.info(`See cloned toolchain: https://${CLOUD_PLATFORM}/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
 		} else {
 			logger.info(`DRY_RUN: ${dryRun}, skipping terraform apply...`, LOG_STAGES.tf);
 		}

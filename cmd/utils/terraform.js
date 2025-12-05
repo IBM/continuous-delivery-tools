@@ -18,6 +18,11 @@ import { validateToolchainId, validateGritUrl } from './validate.js';
 import { logger, LOG_STAGES } from './logger.js';
 import { getRandChars, promptUserInput, replaceUrlRegion } from './utils.js';
 
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
+const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
+const GIT_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_GIT_URL'] : '';
+const IAM_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_IAM_API_ENDPOINT'] : 'https://iam.cloud.ibm.com';
+
 // promisify
 const readFilePromise = promisify(fs.readFile);
 const readDirPromise = promisify(fs.readdir);
@@ -36,6 +41,19 @@ async function execPromise(command, options) {
 function setTerraformEnv(apiKey, verbosity) {
     if (verbosity >= 2) process.env['TF_LOG'] = 'DEBUG';
     process.env['TF_VAR_ibmcloud_api_key'] = apiKey;
+    // reset all Terraform environment variables if pointing to prod domain
+    if (!DEV_MODE) {
+        delete process.env['IBMCLOUD_TOOLCHAIN_ENDPOINT'];
+        delete process.env['IBMCLOUD_TEKTON_PIPELINE_ENDPOINT'];
+        delete process.env['IBMCLOUD_IAM_API_ENDPOINT'];
+        delete process.env['IBMCLOUD_USER_MANAGEMENT_ENDPOINT'];
+        delete process.env['IBMCLOUD_RESOURCE_MANAGEMENT_API_ENDPOINT'];
+        delete process.env['IBMCLOUD_RESOURCE_CONTROLLER_API_ENDPOINT'];
+        delete process.env['IBMCLOUD_IS_NG_API_ENDPOINT'];
+        delete process.env['IBMCLOUD_GT_API_ENDPOINT'];
+        delete process.env['IBMCLOUD_GS_API_ENDPOINT'];
+        delete process.env['IBMCLOUD_USER_MANAGEMENT_ENDPOINT'];
+    }
 }
 
 async function initProviderFile(targetRegion, dir) {
@@ -177,7 +195,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
                                     logger.print('Skipping... (URL will remain unchanged in the generatedTerraform configuration)');
                                     return '';
                                 }
-                                const newUrl = `https://${targetRegion}.git.cloud.ibm.com/${str}.git`;
+                                const newUrl = (GIT_BASE_URL || `https://${targetRegion}.git.cloud.ibm.com`) + `/${str}.git`;
                                 if (usedGritUrls.has(newUrl)) throw Error(`"${newUrl}" has already been used in another mapping entry`);
                                 return validateGritUrl(token, targetRegion, str, false);
                             }
@@ -187,10 +205,10 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
                                 logger.print('Please enter the new URLs for the following GRIT tool(s) (or submit empty input to skip):\n');
                             }
 
-                            const newRepoSlug = await promptUserInput(`Old URL: ${thisUrl.slice(0, thisUrl.length - 4)}\nNew URL: https://${targetRegion}.git.cloud.ibm.com/`, '', validateGritUrlPrompt);
+                            const newRepoSlug = await promptUserInput(`Old URL: ${thisUrl.slice(0, thisUrl.length - 4)}\nNew URL: ${GIT_BASE_URL || 'https://' + targetRegion + '.git.cloud.ibm.com'}`, '', validateGritUrlPrompt);
 
                             if (newRepoSlug) {
-                                newUrl = `https://${targetRegion}.git.cloud.ibm.com/${newRepoSlug}.git`;
+                                newUrl = (GIT_BASE_URL || `https://${targetRegion}.git.cloud.ibm.com`) + `/${newRepoSlug}.git`;
                                 newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['initialization'][0]['repo_url'] = newUrl;
                                 attemptAddUsedGritUrl(newUrl);
                                 gritMapping[thisUrl] = newUrl;
@@ -473,10 +491,12 @@ function replaceDependsOn(str) {
 
 function addS2sScriptToToolchainTf(str) {
     const provisionerStr = (tfName) => `\n\n  provisioner "local-exec" {
-    command = "node create-s2s-script.js"
+    command = "node create-s2s-script.cjs"
     environment = {
       IBMCLOUD_API_KEY = var.ibmcloud_api_key
       TARGET_TOOLCHAIN_ID = ibm_cd_toolchain.${tfName}.id
+      IBMCLOUD_PLATFORM = "${CLOUD_PLATFORM}"
+      IAM_BASE_URL = "${IAM_BASE_URL}"
     }\n  }`
     try {
         if (typeof str === 'string') {

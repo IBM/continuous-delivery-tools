@@ -10,9 +10,12 @@
 import { execSync } from 'child_process';
 import { logger, LOG_STAGES } from './logger.js'
 import { RESERVED_GRIT_PROJECT_NAMES, RESERVED_GRIT_GROUP_NAMES, RESERVED_GRIT_SUBGROUP_NAME, TERRAFORM_REQUIRED_VERSION, SECRET_KEYS_MAP } from '../../config.js';
-import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroup, getGritGroupProject } from './requests.js';
+import { getToolchainsByName, getToolchainTools, getPipelineData, getAppConfigHealthcheck, getSecretsHealthcheck, getGitOAuth, getGritUserProject, getGritGroupProject } from './requests.js';
 import { promptUserConfirmation, promptUserInput, isSecretReference } from './utils.js';
 
+const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
+const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
+const GIT_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_GIT_URL'] : '';
 
 function validatePrereqsVersions() {
     const compareVersions = (verInstalled, verRequired) => {
@@ -151,7 +154,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
     for (const tool of allTools.tools) {
         const toolName = (tool.name || tool.parameters?.name || tool.parameters?.label || '').replace(/\s+/g, '+');
         logger.updateSpinnerMsg(`Validating tool \'${toolName}\'`);
-        const toolUrl = `https://cloud.ibm.com/devops/toolchains/${tool.toolchain_id}/configure/${tool.id}?env_id=ibm:yp:${region}`;
+        const toolUrl = `https://${CLOUD_PLATFORM}/devops/toolchains/${tool.toolchain_id}/configure/${tool.id}?env_id=ibm:yp:${region}`;
 
         if (tool.state !== 'configured') {  // Check for tools in misconfigured/unconfigured/configuring state
             nonConfiguredTools.push({
@@ -278,7 +281,7 @@ async function validateTools(token, tcId, region, skipPrompt) {
     }
 
     if (toolsWithHashedParams.length > 0) {
-        logger.warn('Warning! The following tools contain secrets that cannot be migrated, please use the \'check-secrets\' command to export the secrets: \n', LOG_STAGES.setup, true);
+        logger.warn('Warning! The following tools contain secrets that cannot be migrated, please use the \'export-secrets\' command to export the secrets: \n', LOG_STAGES.setup, true);
         logger.table(toolsWithHashedParams);
     }
 
@@ -394,7 +397,7 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
             logger.print(`${o.type}: \x1b[36m${o.link}\x1b[0m\n`);
         });
 
-        if (hasFailedLink) logger.print(`Please manually verify failed authorization(s): https://cloud.ibm.com/devops/git?env_id=ibm:yp:${targetRegion}\n`);
+        if (hasFailedLink) logger.print(`Please manually verify failed authorization(s): https://${CLOUD_PLATFORM}/devops/git?env_id=ibm:yp:${targetRegion}\n`);
 
         if (!skipPrompt) await promptUserConfirmation('Caution: The above git tool integration(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
     }
@@ -405,8 +408,9 @@ async function validateGritUrl(token, region, url, validateFull) {
     let trimmed;
 
     if (validateFull) {
-        if (!url.startsWith(`https://${region}.git.cloud.ibm.com/`) || !url.endsWith('.git')) throw Error('Provided full GRIT url is not valid');
-        trimmed = url.slice(`https://${region}.git.cloud.ibm.com/`.length, url.length - '.git'.length);
+        const baseUrl = (GIT_BASE_URL || `https://${region}.git.cloud.ibm.com`) + '/';
+        if (!url.startsWith(baseUrl) || !url.endsWith('.git')) throw Error('Provided full GRIT url is not valid');
+        trimmed = url.slice(baseUrl.length, url.length - '.git'.length);
     } else {
         trimmed = url.trim();
     }

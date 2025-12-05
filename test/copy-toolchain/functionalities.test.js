@@ -11,8 +11,6 @@ import path from 'node:path';
 import nconf from 'nconf';
 import fs from 'node:fs';
 
-import * as chai from 'chai';
-chai.config.truncateThreshold = 0;
 import { expect, assert } from 'chai';
 
 import { assertPtyOutput, assertExecError, areFilesInDir, deleteCreatedToolchains, parseTcIdAndRegion } from '../utils/testUtils.js';
