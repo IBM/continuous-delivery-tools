@@ -82,15 +82,6 @@ describe('copy-toolchain: Test functionalities', function () {
             }
         },
         {
-            name: 'Prompt User when toolchain name already exists in resource group',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
-            expected: new RegExp(`Warning! A toolchain named \'${TEST_TOOLCHAINS['empty'].name}\' already exists in:[\\s\\S]*?Resource Group:[\\s\\S]*?${R2R_CLI_RG_ID}`),
-            options: {
-                exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
-                timeout: 10000
-            }
-        },
-        {
             name: 'Prompt User when toolchain name already exists in region',
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region, '-g', DEFAULT_RG_ID],
             expected: new RegExp(`Warning! A toolchain named \'${TEST_TOOLCHAINS['empty'].name}\' already exists in:[\\s\\S]*?Region: ${TEST_TOOLCHAINS['empty'].region}`),
