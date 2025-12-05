@@ -322,10 +322,7 @@ async function main(options) {
 			}
 
 			// create toolchain, which invokes script to create s2s if applicable
-			await runTerraformApply(true, outputDir, verbosity, `ibm_cd_toolchain.${toolchainTfName}`).catch((err) => {
-				logger.error(err, LOG_STAGES.tf);
-				applyErrors = true;
-			});
+			await runTerraformApply(true, outputDir, verbosity, `ibm_cd_toolchain.${toolchainTfName}`);
 
 			// create the rest
 			await runTerraformApply(skipUserConfirmation, outputDir, verbosity).catch((err) => {
