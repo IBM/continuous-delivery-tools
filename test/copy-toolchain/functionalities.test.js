@@ -45,6 +45,15 @@ describe('copy-toolchain: Test functionalities', function () {
             }
         },
         {
+            name: 'CLI Version Verification',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
+            expected: /✔ cd-tools Version:/,
+            options: {
+                exitCondition: `(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`,
+                timeout: 10000
+            }
+        },
+        {
             name: 'Check if CD instance exists in target region',
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
             expected: new RegExp(`Could not find a Continuous Delivery instance in the target region '${TARGET_REGIONS[0]}', please create one before proceeding.`),
