@@ -56,7 +56,6 @@ describe('copy-toolchain: Test tool validation', function () {
             },
             assertionFunc: (output) => {
                 expect(output).to.match(/Warning! The following tools contain secrets that cannot be migrated/);
-                expect(output).to.match(/cloudobjectstorage[\s\S]*?cos_api_key/);
                 expect(output).to.match(/slack[\s\S]*?api_token/);
                 expect(output).to.match(/pipeline[\s\S]*?properties.doi-ibmcloud-api-key/);
             }

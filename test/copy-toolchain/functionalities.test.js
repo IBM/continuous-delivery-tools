@@ -37,10 +37,10 @@ describe('copy-toolchain: Test functionalities', function () {
     const testCases = [
         {
             name: 'Terraform Version Verification',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
             expected: /✔ Terraform Version:/,
             options: {
-                exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
+                exitCondition: `(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`,
                 timeout: 10000
             }
         },
@@ -56,10 +56,10 @@ describe('copy-toolchain: Test functionalities', function () {
         },
         {
             name: 'Log file is created successfully',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
             expected: null,
             options: {
-                exitCondition: '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):',
+                exitCondition: `(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['empty'].name}] (Ctrl-C to abort):`,
                 timeout: 10000,
                 cwd: TEMP_DIR + '/' + 'log-file-is-created-successfully'
             },
