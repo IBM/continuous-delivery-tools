@@ -9,6 +9,7 @@
 
 const fs = require('node:fs');
 const { resolve } = require('node:path');
+const { exit } = require('node:process');
 
 const API_KEY = process.env['IBMCLOUD_API_KEY'];
 if (!API_KEY) throw Error(`Missing 'IBMCLOUD_API_KEY'`);
@@ -103,21 +104,29 @@ async function createS2sAuthPolicy(bearer, item) {
         });
 
         if (!response.ok) {
-            throw new Error(`Response status: ${response.status}, ${response.statusText}`);
+            return Promise.reject(`Failed to create service-to-service authorization policy for ${item['serviceId']} '${item['parameters']['label'] ?? item['parameters']['name']}' with status: ${response.status} ${response.statusText}`);
         }
 
         console.log(`CREATING AUTH POLICY... ${response.status}, ${response.statusText}`);
     } catch (error) {
-        console.error(error.message);
+        return Promise.reject(error.message);
     }
 }
 
 // main
 
-getBearer().then((bearer) => {
+getBearer().then(async (bearer) => {
     const inputArr = JSON.parse(fs.readFileSync(resolve(INPUT_PATH)));
 
-    inputArr.forEach(async (item) => {
-        await createS2sAuthPolicy(bearer, item);
+    const promises = [];
+    inputArr.forEach((item) => {
+        promises.push(createS2sAuthPolicy(bearer, item));
     });
+
+    try {
+        await Promise.all(promises);
+    } catch (e) {
+        console.error(e)
+        exit(1);
+    }
 });

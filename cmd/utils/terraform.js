@@ -192,7 +192,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
                             // prompt user
                             const validateGritUrlPrompt = async (str) => {
                                 if (!str) {
-                                    logger.print('Skipping... (URL will remain unchanged in the generatedTerraform configuration)');
+                                    logger.print('Skipping... (URL will remain unchanged in the generated Terraform configuration)');
                                     return '';
                                 }
                                 const newUrl = (GIT_BASE_URL || `https://${targetRegion}.git.cloud.ibm.com`) + `/${str}.git`;
@@ -492,6 +492,7 @@ function replaceDependsOn(str) {
 function addS2sScriptToToolchainTf(str) {
     const provisionerStr = (tfName) => `\n\n  provisioner "local-exec" {
     command = "node create-s2s-script.cjs"
+    on_failure = fail
     environment = {
       IBMCLOUD_API_KEY = var.ibmcloud_api_key
       TARGET_TOOLCHAIN_ID = ibm_cd_toolchain.${tfName}.id
