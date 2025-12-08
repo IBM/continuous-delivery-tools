@@ -11,9 +11,9 @@ const COPY_TOOLCHAIN_DESC = `Copies a toolchain, including tool integrations and
 
 Examples:
   export IBMCLOUD_API_KEY='...'
-  npx @ibm-cloud/cd-migration-tools copy-toolchain -c \${TOOLCHAIN_CRN} -r us-south
+  npx @ibm-cloud/cd-tools copy-toolchain -c \${TOOLCHAIN_CRN} -r us-south
       Copy a toolchain to the Dallas region with the same name, in the same resource group.
-  npx @ibm-cloud/cd-migration-tools copy-toolchain -c \${TOOLCHAIN_CRN} -r eu-de -n new-toolchain-name -g new-resource-group --apikey \${APIKEY}
+  npx @ibm-cloud/cd-tools copy-toolchain -c \${TOOLCHAIN_CRN} -r eu-de -n new-toolchain-name -g new-resource-group --apikey \${APIKEY}
       Copy a toolchain to the Frankfurt region with the specified name and target resource group, using the given API key
 
 Environment Variables:
