@@ -7,15 +7,19 @@
  * Contract with IBM Corp.
  */
 
-import { Command, Option } from 'commander';
+import { Command } from 'commander';
 import axios from 'axios';
 import readline from 'readline/promises';
+import { writeFile } from 'fs/promises';
 import { TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
+
+const HTTP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default
 
 class GitLabClient {
   constructor(baseURL, token) {
     this.client = axios.create({
       baseURL: baseURL.endsWith('/') ? `${baseURL}api/v4` : `${baseURL}/api/v4`,
+      timeout: HTTP_TIMEOUT_MS,
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -23,24 +27,110 @@ class GitLabClient {
     });
   }
 
-  async getGroupProjects(groupId) {
+  // List all projects in a group + all its subgroups using BFS.
+  async getGroupProjects(groupId, { maxProjects = 1000, maxRequests = 2000 } = {}) {
+    let requestCount = 0;
     const projects = [];
-    let page = 1;
-    let hasMore = true;
+    const toVisit = [groupId];
+    const visited = new Set();
 
-    while (hasMore) {
-      const response = await this.client.get(`/groups/${groupId}/projects`, {
-        params: { page, per_page: 100, include_subgroups: true }
-      });
-      
-      projects.push(...response.data);
-      hasMore = response.data.length === 100;
-      page++;
+    console.log(
+      `[DEBUG] Starting BFS project listing from group ${groupId} (maxProjects=${maxProjects}, maxRequests=${maxRequests})`
+    );
+
+    while (toVisit.length > 0) {
+      const currentGroupId = toVisit.shift();
+      if (visited.has(currentGroupId)) continue;
+      visited.add(currentGroupId);
+
+      console.log(`[DEBUG] Visiting group ${currentGroupId}. Remaining groups in queue: ${toVisit.length}`);
+
+      // List projects for THIS group (no include_subgroups!)
+      let projPage = 1;
+      let hasMoreProjects = true;
+
+      while (hasMoreProjects) {
+        if (requestCount >= maxRequests || projects.length >= maxProjects) {
+          console.warn(`[WARN] Stopping project traversal: requestCount=${requestCount}, projects=${projects.length}`);
+          return projects;
+        }
+
+        const projRes = await this.getWithRetry(
+          `/groups/${currentGroupId}/projects`,
+          { page: projPage, per_page: 100 }
+        );
+
+        requestCount++;
+        const pageProjects = projRes.data || [];
+        if (pageProjects.length > 0) {
+          projects.push(...pageProjects);
+        }
+
+        hasMoreProjects = pageProjects.length === 100;
+        projPage++;
+      }
+
+      // List DIRECT subgroups and enqueue them
+      let subgroupPage = 1;
+      let hasMoreSubgroups = true;
+
+      while (hasMoreSubgroups) {
+        if (requestCount >= maxRequests) {
+          console.warn(
+            `[WARN] Stopping subgroup traversal: requestCount=${requestCount}`
+          );
+          return projects;
+        }
+
+        const subgroupRes = await this.getWithRetry(
+          `/groups/${currentGroupId}/subgroups`,
+          { page: subgroupPage, per_page: 100 }
+        );
+
+        requestCount++;
+        const subgroups = subgroupRes.data || [];
+
+        if (subgroups.length > 0) {
+          for (const sg of subgroups) {
+            if (!visited.has(sg.id)) {
+              toVisit.push(sg.id);
+            }
+          }
+        }
+
+        hasMoreSubgroups = subgroups.length === 100;
+        subgroupPage++;
+      }
     }
-    
+
+    console.log(`[DEBUG] Finished BFS project listing. Total projects=${projects.length}, total requests=${requestCount}`);
     return projects;
   }
-   
+
+  // Helper: GET with retry for flaky 5xx/520 errors (Cloudflare / origin issues)
+  async getWithRetry(path, params = {}, { retries = 3, retryDelayMs = 2000 } = {}) {
+    let lastError;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await this.client.get(path, { params });
+      } catch (error) {
+        const status = error.response?.status;
+
+        if (attempt < retries && status && status >= 500) {
+          console.warn(
+            `[WARN] GET ${path} failed with status ${status} (attempt ${attempt}/${retries}). Retrying...`
+          );
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs * attempt));
+          lastError = error;
+          continue;
+        }
+
+        throw error; // Non-5xx or out of retries: rethrow
+      }
+    }
+    throw lastError;
+  }
+
   async getGroup(groupId) {
     const response = await this.client.get(`/groups/${groupId}`);
     return response.data;
@@ -126,7 +216,7 @@ async function promptUser(name) {
 
   const answer = await rl.question(`Your new group name is ${name}. Are you sure? (Yes/No)`);
 
-  rl.close(); 
+  rl.close();
 
   if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
     console.log("Proceeding...");
@@ -142,6 +232,39 @@ function validateAndConvertRegion(region) {
     );
   }
   return `https://${region}.git.cloud.ibm.com/`;
+}
+
+//  Build a mapping of: old http_url_to_repo -> new http_url_to_repo and old web_url -> new web_url
+async function generateUrlMappingFile({sourceUrl, destUrl, sourceGroup, destinationGroupPath, sourceProjects}) {
+  const destBase = destUrl.endsWith('/') ? destUrl.slice(0, -1) : destUrl;
+  const urlMapping = {};
+
+  const groupPrefix = `${sourceGroup.full_path}/`;
+
+  for (const project of sourceProjects) {
+    const oldRepoUrl = project.http_url_to_repo; // ends with .git
+
+    // path_with_namespace is like "group/subgroup/project-1"
+    let relativePath;
+    if (project.path_with_namespace.startsWith(groupPrefix)) {
+      relativePath = project.path_with_namespace.slice(groupPrefix.length);
+    } else {
+      // Fallback if for some reason full_path is not a prefix
+      relativePath = project.path_with_namespace;
+    }
+
+    const newRepoUrl = `${destBase}/${destinationGroupPath}/${relativePath}.git`;
+    urlMapping[oldRepoUrl] = newRepoUrl;
+  }
+
+  const mappingFile = 'grit-url-map.json';
+
+  await writeFile(mappingFile, JSON.stringify(urlMapping, null, 2), {
+    encoding: 'utf8',
+  });
+
+  console.log(`\nURL mapping JSON generated at: ${mappingFile}`);
+  console.log(`Total mapped projects: ${sourceProjects.length}`);
 }
 
 async function directTransfer(options) {
@@ -168,6 +291,15 @@ async function directTransfer(options) {
       await promptUser(options.newName);
     }
 
+    // Generate URL mapping JSON before starting the migration
+    await generateUrlMappingFile({
+      sourceUrl,
+      destUrl,
+      sourceGroup,
+      destinationGroupPath,
+      sourceProjects,
+    });
+
     let bulkImport = null;
 
     const requestPayload = {
@@ -181,10 +313,10 @@ async function directTransfer(options) {
         destination_slug: destinationGroupPath,
         destination_namespace: ""
       }]
-    }
+    };
 
     let importRes = null;
-    
+
     try {
       importRes = await destination.bulkImport(requestPayload);
       if (importRes.success) {
@@ -192,9 +324,9 @@ async function directTransfer(options) {
         console.log(`Bulk import request succeeded!`);
         console.log(`Bulk import initiated successfully (ID: ${importRes.data?.id})`);
       } else if (importRes.conflict) {
-      console.log(`Conflict detected: ${importRes.error}`);
-      console.log(`Please specify a new group name using -n, --new-name <n> when trying again`);
-      process.exit(0);
+        console.log(`Conflict detected: ${importRes.error}`);
+        console.log(`Please specify a new group name using -n, --new-name <n> when trying again`);
+        process.exit(0);
       }
     } catch (error) {
       console.log(`Bulk import request failed - ${error.message}`);
@@ -204,11 +336,11 @@ async function directTransfer(options) {
     console.log('\nPolling bulk import status (checking every 5 minute)...');
     let importStatus = 'created';
     let attempts = 0;
-    
+
     while (!['finished', 'failed', 'timeout'].includes(importStatus) && attempts < 60) {
       if (attempts > 0) {
         console.log(`Waiting 5 minute before next status check...`);
-        await new Promise(resolve => setTimeout(resolve, 5*60000));
+        await new Promise(resolve => setTimeout(resolve, 5 * 60000));
       }
       try {
         const importDetails = await destination.getBulkImport(bulkImport.id);
@@ -230,7 +362,7 @@ async function directTransfer(options) {
       }
       attempts++;
     }
-    
+
     if (attempts >= 60) {
       console.error(`Bulk import either timed out or is still running in the background`);
       process.exit(0);
@@ -239,20 +371,20 @@ async function directTransfer(options) {
     const entities = await destination.getBulkImportEntities(bulkImport.id);
     const finishedEntities = entities.filter(e => e.status === 'finished');
     const failedEntities = entities.filter(e => e.status === 'failed');
-    
+
     if (importStatus === 'finished' && finishedEntities.length > 0) {
       console.log(`\nGroup migration completed successfully!`);
       console.log(`Migration Results:`);
       console.log(`Successfully migrated: ${finishedEntities.length} entities`);
       console.log(`Failed: ${failedEntities.length} entities`);
-      
+
       if (failedEntities.length > 0) {
         console.log(`\nFailed entities:\n`);
         failedEntities.forEach(e => {
           console.log(`${e.source_type}: ${e.source_full_path} (${e.status})`);
         });
       }
-      
+
       return 0;
     } else {
       console.error('\nBulk import failed!');
@@ -282,7 +414,7 @@ const command = new Command('copy-project-group')
   .showHelpAfterError()
   .hook('preAction', cmd => cmd.showHelpAfterError(false)) // only show help during validation
   .action(async (options) => {
-    await directTransfer(options);  
+    await directTransfer(options);
   });
 
 export default command;
