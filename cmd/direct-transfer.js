@@ -12,6 +12,7 @@ import axios from 'axios';
 import readline from 'readline/promises';
 import { writeFile } from 'fs/promises';
 import { TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
+import { getWithRetry } from './utils/requests.js';
 
 const HTTP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default
 
@@ -55,7 +56,8 @@ class GitLabClient {
           return projects;
         }
 
-        const projRes = await this.getWithRetry(
+        const projRes = await getWithRetry(
+          this.client,
           `/groups/${currentGroupId}/projects`,
           { page: projPage, per_page: 100 }
         );
@@ -82,7 +84,8 @@ class GitLabClient {
           return projects;
         }
 
-        const subgroupRes = await this.getWithRetry(
+        const subgroupRes = await getWithRetry(
+          this.client,
           `/groups/${currentGroupId}/subgroups`,
           { page: subgroupPage, per_page: 100 }
         );
@@ -105,30 +108,6 @@ class GitLabClient {
 
     console.log(`[DEBUG] Finished BFS project listing. Total projects=${projects.length}, total requests=${requestCount}`);
     return projects;
-  }
-
-  // Helper: GET with retry for flaky 5xx/520 errors (Cloudflare / origin issues)
-  async getWithRetry(path, params = {}, { retries = 3, retryDelayMs = 2000 } = {}) {
-    let lastError;
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        return await this.client.get(path, { params });
-      } catch (error) {
-        const status = error.response?.status;
-
-        if (attempt < retries && status && status >= 500) {
-          console.warn(
-            `[WARN] GET ${path} failed with status ${status} (attempt ${attempt}/${retries}). Retrying...`
-          );
-          await new Promise(resolve => setTimeout(resolve, retryDelayMs * attempt));
-          lastError = error;
-          continue;
-        }
-
-        throw error; // Non-5xx or out of retries: rethrow
-      }
-    }
-    throw lastError;
   }
 
   async getGroup(groupId) {
@@ -234,7 +213,7 @@ function validateAndConvertRegion(region) {
   return `https://${region}.git.cloud.ibm.com/`;
 }
 
-//  Build a mapping of: old http_url_to_repo -> new http_url_to_repo and old web_url -> new web_url
+//  Build a mapping of: old http_url_to_repo -> new http_url_to_repo
 async function generateUrlMappingFile({sourceUrl, destUrl, sourceGroup, destinationGroupPath, sourceProjects}) {
   const destBase = destUrl.endsWith('/') ? destUrl.slice(0, -1) : destUrl;
   const urlMapping = {};
