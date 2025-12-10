@@ -473,7 +473,7 @@ async function validateGritUrl(token, region, url, validateFull) {
         await getGritGroupProject(accessToken, region, urlStart, projectName);
         return trimmed;
     } catch {
-        throw Error('Provided GRIT url not found');
+        throw Error(`Provided GRIT url not found: ${url}`);
     }
 }
 
