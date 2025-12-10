@@ -405,19 +405,17 @@ async function validateOAuth(token, tools, targetRegion, skipPrompt) {
 
 async function validateGritUrl(token, region, url, validateFull) {
     if (typeof url != 'string') throw Error('Provided GRIT url is not a string');
-    let trimmed;
+    let trimmed = url.trim();
 
     if (validateFull) {
         const baseUrl = (GIT_BASE_URL || `https://${region}.git.cloud.ibm.com`) + '/';
-        if (!url.startsWith(baseUrl)) throw Error('Provided full GRIT url is not valid');
+        if (!trimmed.startsWith(baseUrl)) throw Error('Provided full GRIT url is not valid');
 
-        if (url.endsWith('.git')) {
-            trimmed = url.slice(baseUrl.length, url.length - '.git'.length);
+        if (trimmed.endsWith('.git')) {
+            trimmed = trimmed.slice(baseUrl.length, trimmed.length - '.git'.length);
         } else {
-            trimmed = url.slice(baseUrl.length);
+            trimmed = trimmed.slice(baseUrl.length);
         }
-    } else {
-        trimmed = url.trim();
     }
 
     // split into two parts, user/group/subgroup and project
