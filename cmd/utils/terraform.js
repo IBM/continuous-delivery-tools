@@ -205,7 +205,7 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
                                 logger.print('Please enter the new URLs for the following GRIT tool(s) (or submit empty input to skip):\n');
                             }
 
-                            const newRepoSlug = await promptUserInput(`Old URL: ${thisUrl.slice(0, thisUrl.length - 4)}\nNew URL: ${GIT_BASE_URL || 'https://' + targetRegion + '.git.cloud.ibm.com'}`, '', validateGritUrlPrompt);
+                            const newRepoSlug = await promptUserInput(`Old URL: ${thisUrl.slice(0, thisUrl.length - 4)}\nNew URL: ${GIT_BASE_URL || 'https://' + targetRegion + '.git.cloud.ibm.com'}/`, '', validateGritUrlPrompt);
 
                             if (newRepoSlug) {
                                 newUrl = (GIT_BASE_URL || `https://${targetRegion}.git.cloud.ibm.com`) + `/${newRepoSlug}.git`;
