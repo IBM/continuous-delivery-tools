@@ -409,8 +409,13 @@ async function validateGritUrl(token, region, url, validateFull) {
 
     if (validateFull) {
         const baseUrl = (GIT_BASE_URL || `https://${region}.git.cloud.ibm.com`) + '/';
-        if (!url.startsWith(baseUrl) || !url.endsWith('.git')) throw Error('Provided full GRIT url is not valid');
-        trimmed = url.slice(baseUrl.length, url.length - '.git'.length);
+        if (!url.startsWith(baseUrl)) throw Error('Provided full GRIT url is not valid');
+
+        if (url.endsWith('.git')) {
+            trimmed = url.slice(baseUrl.length, url.length - '.git'.length);
+        } else {
+            trimmed = url.slice(baseUrl.length);
+        }
     } else {
         trimmed = url.trim();
     }
