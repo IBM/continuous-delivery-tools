@@ -477,6 +477,28 @@ async function migrateToolchainSecrets(bearer, data, region) {
     }
 }
 
+// GET with retry for flaky 5xx/520 errors (Cloudflare / origin issues)
+async function getWithRetry(client, path, params = {}, { retries = 3, retryDelayMs = 2000 } = {}) {
+  let lastError;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await client.get(path, { params });
+    } catch (error) {
+      const status = error.response?.status;
+      if (attempt < retries && status && status >= 500) {
+        console.warn(
+          `[WARN] GET ${path} failed with status ${status} (attempt ${attempt}/${retries}). Retrying...`
+        );
+        await new Promise(resolve => setTimeout(resolve, retryDelayMs * attempt));
+        lastError = error;
+        continue;
+      }
+      throw error; // Non-5xx or out of retries: rethrow
+    }
+  }
+  throw lastError;
+}
+
 export {
     getBearerToken,
     getAccountId,
@@ -495,5 +517,6 @@ export {
     deleteToolchain,
     createTool,
     getSmInstances,
-    migrateToolchainSecrets
+    migrateToolchainSecrets,
+    getWithRetry
 }
