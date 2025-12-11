@@ -246,6 +246,14 @@ async function generateUrlMappingFile({sourceUrl, destUrl, sourceGroup, destinat
   console.log(`Total mapped projects: ${sourceProjects.length}`);
 }
 
+function buildGroupImportHistoryUrl(destUrl) {
+  try {
+    return new URL('import/bulk_imports/history', destUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
 async function directTransfer(options) {
   const sourceUrl = validateAndConvertRegion(options.sourceRegion);
   const destUrl = validateAndConvertRegion(options.destRegion);
@@ -343,7 +351,18 @@ async function directTransfer(options) {
     }
 
     if (attempts >= 60) {
-      console.error(`Bulk import either timed out or is still running in the background`);
+      const historyUrl = buildGroupImportHistoryUrl(destUrl);
+
+      console.error('\nThe CLI has stopped polling for the GitLab bulk import.');
+      console.error('The migration itself may still be running inside GitLab — the CLI only waits for a limited time.');
+      console.error(`Last reported status for bulk import ${bulkImport.id}: ${importStatus}`);
+
+      if (historyUrl) {
+        console.error('\nYou can continue monitoring this migration in the GitLab UI.');
+        console.error(`Group import history: ${historyUrl}`);
+      } else {
+        console.error('\nYou can continue monitoring this migration from the Group import history page in the GitLab UI.');
+      }
       process.exit(0);
     }
 
