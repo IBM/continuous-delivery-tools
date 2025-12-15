@@ -1,0 +1,40 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [ "ejd-gha" ]
+
+permissions:
+  contents: read # for checkout
+
+jobs:
+  pr-checks:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # to comment on released pull requests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GHE_TOKEN }} # for private repos
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+      - name: Install dependencies
+        run: |
+          pwd
+          echo ""
+          npm config ls -l
+          echo ""
+          npm install
+      - name: Unit-Tests
+        run: npm run test
+        env:
+          TEST_DEBUG_MODE: ${{ vars.TEST_DEBUG_MODE }}
+          TEST_TEMP_DIR: ${{ vars.TEST_TEMP_DIR }}
+          TEST_LOG_DIR: ${{ vars.TEST_LOG_DIR }}
+          IBMCLOUD_API_KEY: ${{ secrets.IBMCLOUD_API_KEY }}
+          LOG_DUMP: ${{ vars.LOG_DUMP }}
+          DISABLE_SPINNER: ${{ vars.DISABLE_SPINNER }}
