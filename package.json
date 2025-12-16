@@ -33,6 +33,7 @@
   "type": "module",
   "devDependencies": {
     "chai": "^6.2.0",
+    "eslint": "^9.39.2",
     "mocha": "^11.7.4",
     "nconf": "^0.13.0",
     "node-pty": "^1.0.0"
