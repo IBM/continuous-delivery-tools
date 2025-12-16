@@ -185,6 +185,28 @@ class GitLabClient {
       throw new Error(`Bulk import API call failed: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
     }
   }
+
+    async getBulkImportEntitiesAll(importId, { perPage = 100, maxPages = 200 } = {}) {
+      const all = [];
+      let page = 1;
+
+      while (page <= maxPages) {
+        const resp = await getWithRetry(
+          this.client,
+          `/bulk_imports/${importId}/entities`,
+          { page, per_page: perPage }
+        );
+
+        all.push(...(resp.data || []));
+
+        const nextPage = Number(resp.headers?.['x-next-page'] || 0);
+        if (!nextPage) break;
+
+        page = nextPage;
+      }
+
+      return all;
+  }
 }
 
 async function promptUser(name) {
@@ -254,6 +276,91 @@ function buildGroupImportHistoryUrl(destUrl) {
   }
 }
 
+function summarizeBulkImportProgress(entities = []) {
+  let entityTotal = 0;
+  let entityFinished = 0;
+  let entityFailed = 0;
+
+  let projectTotal = 0;
+  let projectFinished = 0;
+  let projectFailed = 0;
+
+  let lastCompleted = null;
+  let lastCompletedTs = 0;
+
+  for (const e of entities) {
+    entityTotal++;
+
+    const status = e.status;
+    const isFinished = status === 'finished';
+    const isFailed = status === 'failed';
+
+    if (isFinished) entityFinished++;
+    if (isFailed) entityFailed++;
+
+    const isProjectEntity =
+      e.source_type === 'project_entity' ||
+      e.entity_type === 'project_entity' ||
+      e.entity_type === 'project';
+
+    if (isProjectEntity) {
+      projectTotal++;
+      if (isFinished) projectFinished++;
+      if (isFailed) projectFailed++;
+    }
+
+    if (isFinished) {
+      const ts = new Date(e.updated_at || e.created_at || 0).getTime();
+      if (ts > lastCompletedTs) {
+        lastCompletedTs = ts;
+        lastCompleted = e;
+      }
+    }
+  }
+
+  const entityDone = entityFinished + entityFailed;
+  const entityPct = entityTotal ? Math.floor((entityDone / entityTotal) * 100) : 0;
+
+  const projectDone = projectFinished + projectFailed;
+  const projectPct = projectTotal ? Math.floor((projectDone / projectTotal) * 100) : 0;
+
+  const lastCompletedLabel = lastCompleted?.source_full_path || '';
+
+  return {
+    entityTotal,
+    entityDone,
+    entityFailed,
+    entityPct,
+    projectTotal,
+    projectDone,
+    projectFailed,
+    projectPct,
+    lastCompletedLabel,
+  };
+}
+
+function formatBulkImportProgressLine(importStatus, summary) {
+  if (!summary || summary.entityTotal === 0) {
+    return `Import status: ${importStatus} | Progress: initializing...`;
+  }
+
+  const parts = [`Import status: ${importStatus}`];
+
+  if (summary.projectTotal > 0) {
+    parts.push(`Projects: ${summary.projectDone}/${summary.projectTotal} (${summary.projectPct}%)`);
+    if (summary.projectFailed > 0) parts.push(`Project failed: ${summary.projectFailed}`);
+  }
+
+  parts.push(`Entities: ${summary.entityDone}/${summary.entityTotal} (${summary.entityPct}%)`);
+  if (summary.entityFailed > 0) parts.push(`Failed: ${summary.entityFailed}`);
+
+  if (summary.lastCompletedLabel) {
+    parts.push(`Last completed: ${summary.lastCompletedLabel}`);
+  }
+
+  return parts.join(' | ');
+}
+
 async function directTransfer(options) {
   const sourceUrl = validateAndConvertRegion(options.sourceRegion);
   const destUrl = validateAndConvertRegion(options.destRegion);
@@ -320,19 +427,36 @@ async function directTransfer(options) {
       process.exit(0);
     }
 
-    console.log('\nPolling bulk import status (checking every 5 minute)...');
+    console.log('\nPolling bulk import status (adaptive: 1m→2m→3m→4m→5m, max 60 checks)...');
+    const MAX_ATTEMPTS = 60;
+    const POLLS_PER_STEP = 5;
+    const MIN_INTERVAL_MIN = 1;
+    const MAX_INTERVAL_MIN = 5;
+
     let importStatus = 'created';
     let attempts = 0;
 
-    while (!['finished', 'failed', 'timeout'].includes(importStatus) && attempts < 60) {
+    while (!['finished', 'failed', 'timeout'].includes(importStatus) && attempts < MAX_ATTEMPTS) {
       if (attempts > 0) {
-        console.log(`Waiting 5 minute before next status check...`);
-        await new Promise(resolve => setTimeout(resolve, 5 * 60000));
+        const step = Math.floor(attempts / POLLS_PER_STEP);
+        const waitMin = Math.min(MIN_INTERVAL_MIN + step, MAX_INTERVAL_MIN);
+
+        console.log(`Waiting ${waitMin} minute before next status check...`);
+        await new Promise(resolve => setTimeout(resolve, waitMin * 60000));
       }
       try {
         const importDetails = await destination.getBulkImport(bulkImport.id);
         importStatus = importDetails.status;
-        console.log(`[${new Date().toLocaleTimeString()}] Import status: ${importStatus}`);
+        let progressLine;
+        try {
+          const entitiesAll = await destination.getBulkImportEntitiesAll(bulkImport.id);
+          const summary = summarizeBulkImportProgress(entitiesAll);
+          progressLine = formatBulkImportProgressLine(importStatus, summary);
+        } catch {
+          progressLine = `Import status: ${importStatus} | Progress: (unable to fetch entity details)`;
+        }
+
+        console.log(`[${new Date().toLocaleTimeString()}] ${progressLine}`);
 
         if (importStatus === 'finished') {
           console.log('Bulk import completed successfully!');
@@ -350,7 +474,7 @@ async function directTransfer(options) {
       attempts++;
     }
 
-    if (attempts >= 60) {
+    if (attempts >= MAX_ATTEMPTS) {
       const historyUrl = buildGroupImportHistoryUrl(destUrl);
 
       console.error('\nThe CLI has stopped polling for the GitLab bulk import.');
