@@ -207,6 +207,20 @@ class GitLabClient {
 
       return all;
   }
+
+  async getGroupByFullPath(fullPath) {
+    const encoded = encodeURIComponent(fullPath);
+    const resp = await this.client.get(`/groups/${encoded}`);
+    return resp.data;
+  }
+
+  async listBulkImports({ page = 1, perPage = 50 } = {}) {
+    const resp = await getWithRetry(this.client, `/bulk_imports`, { page, per_page: perPage });
+    return {
+      imports: resp.data || [],
+      nextPage: Number(resp.headers?.['x-next-page'] || 0),
+    };
+  }
 }
 
 async function promptUser(name) {
@@ -361,6 +375,84 @@ function formatBulkImportProgressLine(importStatus, summary) {
   return parts.join(' | ');
 }
 
+function buildGroupUrl(base, path) {
+  try {
+    return new URL(path.replace(/^\//, ''), base).toString();
+  } catch {
+    return null;
+  }
+}
+
+function isGroupEntity(e) {
+  return e?.source_type === 'group_entity' || e?.entity_type === 'group_entity' || e?.entity_type === 'group';
+}
+
+async function handleBulkImportConflict({destination, destUrl, sourceGroupFullPath, destinationGroupPath, importResErr}) {
+  const historyUrl = buildGroupImportHistoryUrl(destUrl);
+  const groupUrl = buildGroupUrl(destUrl, `/groups/${destinationGroupPath}`);
+  const fallback = () => {
+    console.log(`\nDestination group already exists.`);
+    if (groupUrl) console.log(`Group: ${groupUrl}`);
+    if (historyUrl) console.log(`Group import history: ${historyUrl}`);
+    process.exit(0);
+  };
+
+  try {
+    await destination.getGroupByFullPath(destinationGroupPath);
+  } catch {
+    fallback();
+  }
+
+  try {
+    const IMPORT_PAGES = 3;
+    const ENTITY_PAGES = 2;
+
+    let page = 1;
+    for (let p = 0; p < IMPORT_PAGES; p++) {
+      const { imports, nextPage } = await destination.listBulkImports({ page, perPage: 50 });
+
+      for (const bi of imports) {
+        if (!bi?.id) continue;
+
+        const status = bi.status;
+        if (!['created', 'started', 'finished'].includes(status)) continue;
+
+        const entities = await destination.getBulkImportEntitiesAll(bi.id, { perPage: 100, maxPages: ENTITY_PAGES });
+
+        const matchesThisGroup = entities.some(e =>
+          isGroupEntity(e) &&
+          e.source_full_path === sourceGroupFullPath &&
+          (e.destination_full_path === destinationGroupPath || e.destination_slug === destinationGroupPath)
+        );
+
+        if (!matchesThisGroup) continue;
+
+        if (status === 'created' || status === 'started') {
+          console.log(`\nGroup is already in migration...`);
+          console.log(`Bulk import ID: ${bi.id}`);
+          if (groupUrl) console.log(`Migrated group: ${groupUrl}`);
+          if (historyUrl) console.log(`Group import history: ${historyUrl}`);
+          process.exit(0);
+        }
+
+        console.log(`\nConflict detected: ${importResErr}`);
+        console.log(`Please specify a new group name using -n, --new-name <n> when trying again`);
+        console.log(`\nGroup already migrated.`);
+        if (groupUrl) console.log(`Migrated group: ${groupUrl}`);
+        if (historyUrl) console.log(`Group import history: ${historyUrl}`);
+        process.exit(0);
+      }
+
+      if (!nextPage) break;
+      page = nextPage;
+    }
+
+    fallback();
+  } catch {
+    fallback();
+  }
+}
+
 async function directTransfer(options) {
   const sourceUrl = validateAndConvertRegion(options.sourceRegion);
   const destUrl = validateAndConvertRegion(options.destRegion);
@@ -418,9 +510,13 @@ async function directTransfer(options) {
         console.log(`Bulk import request succeeded!`);
         console.log(`Bulk import initiated successfully (ID: ${importRes.data?.id})`);
       } else if (importRes.conflict) {
-        console.log(`Conflict detected: ${importRes.error}`);
-        console.log(`Please specify a new group name using -n, --new-name <n> when trying again`);
-        process.exit(0);
+        await handleBulkImportConflict({
+          destination,
+          destUrl,
+          sourceGroupFullPath: sourceGroup.full_path,
+          destinationGroupPath,
+          importResErr: importRes.error
+        });
       }
     } catch (error) {
       console.log(`Bulk import request failed - ${error.message}`);
@@ -506,6 +602,8 @@ async function directTransfer(options) {
           console.log(`${e.source_type}: ${e.source_full_path} (${e.status})`);
         });
       }
+      const migratedGroupUrl = buildGroupUrl(destUrl, `/groups/${destinationGroupPath}`);
+      if (migratedGroupUrl) console.log(`\nMigrated group: ${migratedGroupUrl}`);
 
       return 0;
     } else {
