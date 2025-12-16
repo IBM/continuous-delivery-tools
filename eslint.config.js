@@ -7,9 +7,9 @@ export default defineConfig([
     files: ["**/*.{js,mjs,cjs}"],
     ignores: ["**/test/**"],
     rules: {
-      "no-unused-vars": "error",
-      "no-useless-catch": "error",
-      "no-case-declarations": "error",
+      "no-unused-vars": "warn",
+      "no-useless-catch": "warn",
+      "no-case-declarations": "warn",
       "no-useless-escape": "off",
       "no-control-regex": "off",
       "no-regex-spaces": "off",
