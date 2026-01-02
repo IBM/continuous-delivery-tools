@@ -492,7 +492,7 @@ function replaceDependsOn(str) {
 function addS2sScriptToToolchainTf(str) {
     const provisionerStr = (tfName) => `\n\n  provisioner "local-exec" {
     command = "node create-s2s-script.cjs"
-    on_failure = fail
+    on_failure = continue
     environment = {
       IBMCLOUD_API_KEY = var.ibmcloud_api_key
       TARGET_TOOLCHAIN_ID = ibm_cd_toolchain.${tfName}.id

@@ -23,7 +23,8 @@ if (!CLOUD_PLATFORM) throw Error(`Missing 'IBMCLOUD_PLATFORM'`);
 const IAM_BASE_URL = process.env['IAM_BASE_URL'] || 'https://iam.cloud.ibm.com';
 if (!IAM_BASE_URL) throw Error(`Missing 'IAM_BASE_URL'`);
 
-const INPUT_PATH = 'create-s2s.json';
+const INPUT_PATH = resolve('create-s2s.json');
+const ERROR_PATH = resolve('.s2s-script-failures');
 
 async function getBearer() {
     const url = `${IAM_BASE_URL}/identity/token`;
@@ -44,14 +45,12 @@ async function getBearer() {
         });
 
         if (!response.ok) {
-            throw new Error(`Response status: ${response.status}, ${response.statusText}`);
+            throw new Error(`Failed to get bearer token with status: ${response.status}, ${response.statusText}`);
         }
-
-        console.log(`GETTING BEARER TOKEN... ${response.status}, ${response.statusText}`);
 
         return (await response.json()).access_token;
     } catch (error) {
-        console.error(error.message);
+        console.error(`Failed to get bearer token: ${error.message}`);
     }
 }
 
@@ -106,17 +105,20 @@ async function createS2sAuthPolicy(bearer, item) {
         if (!response.ok) {
             return Promise.reject(`Failed to create service-to-service authorization policy for ${item['serviceId']} '${item['parameters']['label'] ?? item['parameters']['name']}' with status: ${response.status} ${response.statusText}`);
         }
-
-        console.log(`CREATING AUTH POLICY... ${response.status}, ${response.statusText}`);
     } catch (error) {
-        return Promise.reject(error.message);
+        return Promise.reject(`Failed to create service-to-service authorization policy for ${item['serviceId']} '${error.message}`);
     }
 }
 
 // main
 
 getBearer().then(async (bearer) => {
-    const inputArr = JSON.parse(fs.readFileSync(resolve(INPUT_PATH)));
+    // remove temp file from previous runs
+    if (fs.existsSync(ERROR_PATH)) {
+        fs.rmSync(ERROR_PATH);
+    }
+
+    const inputArr = JSON.parse(fs.readFileSync(INPUT_PATH));
 
     const promises = [];
     inputArr.forEach((item) => {
@@ -126,7 +128,9 @@ getBearer().then(async (bearer) => {
     try {
         await Promise.all(promises);
     } catch (e) {
-        console.error(e)
+        console.error(e);
+        // create temp file on error
+        fs.writeFileSync(ERROR_PATH, e);
         exit(1);
     }
 });
