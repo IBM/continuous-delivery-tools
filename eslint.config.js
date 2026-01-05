@@ -7,7 +7,11 @@ export default defineConfig([
     files: ["**/*.{js,mjs,cjs}"],
     ignores: ["**/test/**"],
     rules: {
-      "no-unused-vars": "warn",
+      "no-unused-vars": ["warn", {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }],
       "no-useless-catch": "warn",
       "no-case-declarations": "warn",
       "no-useless-escape": "off",
