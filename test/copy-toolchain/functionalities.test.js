@@ -15,7 +15,7 @@ import { expect, assert } from 'chai';
 
 import { assertPtyOutput, assertExecError, areFilesInDir, deleteCreatedToolchains, parseTcIdAndRegion } from '../utils/testUtils.js';
 import { getBearerToken, getToolchain } from '../../cmd/utils/requests.js';
-import { TEST_TOOLCHAINS, DEFAULT_RG_ID, R2R_CLI_RG_ID } from '../data/test-toolchains.js';
+import { TEST_TOOLCHAINS, DEFAULT_RG_ID } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
 
 nconf.env('__');

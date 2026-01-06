@@ -31,7 +31,7 @@ const writeFilePromise = promisify(fs.writeFile)
 async function execPromise(command, options) {
     try {
         const exec = promisify(child_process.exec);
-        const { stdout, stderr } = await exec(command, options);
+        const { stdout, _ } = await exec(command, options);
         return stdout.trim();
     } catch (err) {
         throw new Error(`Command failed: ${command} \n${err.stderr || err.stdout}`);
@@ -419,7 +419,6 @@ async function runTerraformApply(skipTfConfirmation, outputDir, verbosity, targe
     });
 
     let stdoutData = '';
-    let stderrData = '';
 
     child.stdout.on('data', (chunk) => {
         const text = chunk.toString();
@@ -432,7 +431,6 @@ async function runTerraformApply(skipTfConfirmation, outputDir, verbosity, targe
 
     child.stderr.on('data', (chunk) => {
         const text = chunk.toString();
-        stderrData += text;
         if (verbosity >= 1) {
             process.stderr.write(text);
             logger.dump(text);

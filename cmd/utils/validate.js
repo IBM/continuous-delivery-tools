@@ -86,8 +86,7 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
     const toolchains = await getToolchainsByName(token, accountId, tcName);
 
     let hasSameRegion = false;
-    let hasSameResourceGroup = false;
-    let hasBoth = false;
+    let hasBoth = false; // same region and resource group
 
     if (toolchains.length > 0) {
         let newTcName = tcName;
@@ -100,8 +99,6 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
                 } else {
                     hasSameRegion = true;
                 }
-            } else if (tc.resource_group_id === targetResourceGroupId) {
-                hasSameResourceGroup = true;
             }
         });
 
@@ -117,10 +114,6 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
                 // soft warning of confusion
                 logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Region: ${targetRegion}`, '', true);
             }
-            // if (hasSameResourceGroup) {
-            //     // soft warning of confusion
-            //     logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Resource Group: ${targetResourceGroupName} (${targetResourceGroupId})`, '', true);
-            // }
         }
 
         if (hasBoth || hasSameRegion) {

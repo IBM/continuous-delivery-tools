@@ -107,12 +107,7 @@ class Logger {
 
     async withSpinner(asyncFn, loadingMsg, successMsg, prefix, ...args) {
         if (this.verbosity < 1 || DISABLE_SPINNER) {
-            try {
-                return await asyncFn(...args);
-            }
-            catch (err) {
-                throw (err);
-            }
+            return await asyncFn(...args);
         }
 
         this.spinner = ora({

@@ -11,7 +11,7 @@ import { Command } from 'commander';
 import axios from 'axios';
 import readline from 'readline/promises';
 import { writeFile } from 'fs/promises';
-import { TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
+import { SOURCE_REGIONS } from '../config.js';
 import { getWithRetry } from './utils/requests.js';
 
 const HTTP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default
@@ -186,26 +186,26 @@ class GitLabClient {
     }
   }
 
-    async getBulkImportEntitiesAll(importId, { perPage = 100, maxPages = 200 } = {}) {
-      const all = [];
-      let page = 1;
+  async getBulkImportEntitiesAll(importId, { perPage = 100, maxPages = 200 } = {}) {
+    const all = [];
+    let page = 1;
 
-      while (page <= maxPages) {
-        const resp = await getWithRetry(
-          this.client,
-          `/bulk_imports/${importId}/entities`,
-          { page, per_page: perPage }
-        );
+    while (page <= maxPages) {
+      const resp = await getWithRetry(
+        this.client,
+        `/bulk_imports/${importId}/entities`,
+        { page, per_page: perPage }
+      );
 
-        all.push(...(resp.data || []));
+      all.push(...(resp.data || []));
 
-        const nextPage = Number(resp.headers?.['x-next-page'] || 0);
-        if (!nextPage) break;
+      const nextPage = Number(resp.headers?.['x-next-page'] || 0);
+      if (!nextPage) break;
 
-        page = nextPage;
-      }
+      page = nextPage;
+    }
 
-      return all;
+    return all;
   }
 
   async getGroupByFullPath(fullPath) {
@@ -250,7 +250,7 @@ function validateAndConvertRegion(region) {
 }
 
 //  Build a mapping of: old http_url_to_repo -> new http_url_to_repo
-async function generateUrlMappingFile({sourceUrl, destUrl, sourceGroup, destinationGroupPath, sourceProjects}) {
+async function generateUrlMappingFile({ _, destUrl, sourceGroup, destinationGroupPath, sourceProjects }) {
   const destBase = destUrl.endsWith('/') ? destUrl.slice(0, -1) : destUrl;
   const urlMapping = {};
 
@@ -387,7 +387,7 @@ function isGroupEntity(e) {
   return e?.source_type === 'group_entity' || e?.entity_type === 'group_entity' || e?.entity_type === 'group';
 }
 
-async function handleBulkImportConflict({destination, destUrl, sourceGroupFullPath, destinationGroupPath, importResErr}) {
+async function handleBulkImportConflict({ destination, destUrl, sourceGroupFullPath, destinationGroupPath, importResErr }) {
   const historyUrl = buildGroupImportHistoryUrl(destUrl);
   const groupUrl = buildGroupUrl(destUrl, `/groups/${destinationGroupPath}`);
   const fallback = () => {
@@ -463,7 +463,7 @@ async function directTransfer(options) {
     console.log(`Fetching source group from ID: ${options.groupId}...`);
     const sourceGroup = await source.getGroup(options.groupId);
 
-    let destinationGroupName = options.newName || sourceGroup.name;
+    // let destinationGroupName = options.newName || sourceGroup.name;
     let destinationGroupPath = options.newName || sourceGroup.path;
 
     const sourceProjects = await source.getGroupProjects(sourceGroup.id);
