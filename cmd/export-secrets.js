@@ -56,7 +56,7 @@ async function main(options) {
             const decomposedCrn = decomposeCrn(toolchainCrn);
             toolchainId = decomposedCrn.serviceInstance;
             region = decomposedCrn.location;
-        } catch (e) {
+        } catch {
             throw Error('Provided toolchain CRN is invalid');
         }
 
