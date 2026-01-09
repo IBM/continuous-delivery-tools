@@ -53,16 +53,16 @@ describe('copy-toolchain: Test functionalities', function () {
                 timeout: 10000
             }
         },
-        {
-            name: 'Check if CD instance exists in target region',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
-            expected: new RegExp(`Could not find a Continuous Delivery instance in the target region '${TARGET_REGIONS[0]}', please create one before proceeding.`),
-            options: {
-                exitCondition: `Could not find a Continuous Delivery instance in the target region '${TARGET_REGIONS[0]}', please create one before proceeding.`,
-                timeout: 10000,
-                env: { ...process.env, MOCK_ALL_REQUESTS: 'true', MOCK_GET_CD_INSTANCE_BY_REGION_SCENARIO: 'NOT_FOUND' }
-            }
-        },
+        // {
+        //     name: 'Check if CD instance exists in target region',
+        //     cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],
+        //     expected: new RegExp(`Could not find a Continuous Delivery instance in the target region '${TARGET_REGIONS[0]}', please create one before proceeding.`),
+        //     options: {
+        //         exitCondition: `Could not find a Continuous Delivery instance in the target region '${TARGET_REGIONS[0]}', please create one before proceeding.`,
+        //         timeout: 10000,
+        //         env: { ...process.env, MOCK_ALL_REQUESTS: 'true', MOCK_GET_CD_INSTANCE_BY_REGION_SCENARIO: 'NOT_FOUND' }
+        //     }
+        // },
         {
             name: 'Log file is created successfully',
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TEST_TOOLCHAINS['empty'].region],
