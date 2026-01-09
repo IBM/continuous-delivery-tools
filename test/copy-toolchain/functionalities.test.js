@@ -53,6 +53,7 @@ describe('copy-toolchain: Test functionalities', function () {
                 timeout: 10000
             }
         },
+        // TODO: update outdated test from when missing cd instance would fail the command
         // {
         //     name: 'Check if CD instance exists in target region',
         //     cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['empty'].crn, '-r', TARGET_REGIONS[0]],

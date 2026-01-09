@@ -111,7 +111,7 @@ async function main(options) {
 
 		// check for continuous delivery instance in target region
 		if (!await getCdInstanceByRegion(bearer, accountId, targetRegion)) {
-			// throw Error(`Could not find a Continuous Delivery instance in the target region '${targetRegion}', please create one before proceeding.`);
+			// give users the option to bypass
 			logger.warn(`Warning! Could not find a Continuous Delivery instance in the target region '${targetRegion}' or you do not have permission to view, please create one before proceeding if one does not exist already.`, LOG_STAGES.setup);
 			await promptUserConfirmation(`Do you want to proceed anyway?`, 'yes', 'Toolchain migration cancelled.');
 		}
