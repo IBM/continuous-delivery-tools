@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -19,7 +19,7 @@ import fs from 'node:fs';
 
 import { Command, Option } from 'commander';
 
-import { parseEnvVar } from './utils/utils.js';
+import { parseEnvVar, promptUserConfirmation } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { setTerraformEnv, initProviderFile, setupTerraformFiles, runTerraformInit, getNumResourcesPlanned, runTerraformApply, getNumResourcesCreated, getNewToolchainId } from './utils/terraform.js';
 import { getAccountId, getBearerToken, getCdInstanceByRegion, getResourceGroups, getToolchain } from './utils/requests.js';
@@ -110,7 +110,11 @@ async function main(options) {
 		const accountId = await getAccountId(bearer, apiKey);
 
 		// check for continuous delivery instance in target region
-		if (!await getCdInstanceByRegion(bearer, accountId, targetRegion)) throw Error(`Could not find a Continuous Delivery instance in the target region '${targetRegion}', please create one before proceeding.`);
+		if (!await getCdInstanceByRegion(bearer, accountId, targetRegion)) {
+			// give users the option to bypass
+			logger.warn(`Warning! Could not find a Continuous Delivery instance in the target region '${targetRegion}' or you do not have permission to view, please create one before proceeding if one does not exist already.`, LOG_STAGES.setup);
+			await promptUserConfirmation(`Do you want to proceed anyway?`, 'yes', 'Toolchain migration cancelled.');
+		}
 
 		// check for existing .tf files in output directory
 		if (fs.existsSync(outputDir)) {
