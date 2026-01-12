@@ -18,13 +18,17 @@ const HTTP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default
 
 class GitLabClient {
   constructor(baseURL, token) {
+    const root = baseURL.endsWith("/") ? baseURL : `${baseURL}/`;
+    
     this.client = axios.create({
-      baseURL: baseURL.endsWith('/') ? `${baseURL}api/v4` : `${baseURL}/api/v4`,
+      baseURL: `${root}api/v4`,
       timeout: HTTP_TIMEOUT_MS,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+    this.graph = axios.create({
+      baseURL: `${root}api`,
+      timeout: HTTP_TIMEOUT_MS,
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     });
   }
 
@@ -108,6 +112,50 @@ class GitLabClient {
 
     console.log(`[DEBUG] Finished BFS project listing. Total projects=${projects.length}, total requests=${requestCount}`);
     return projects;
+  }
+
+  async listGroupProjectsGraphQL(groupFullPath, { includeSubgroups = true, pageSize = 200, maxProjects = 5000 } = {}) {
+    const out = [];
+    let after = null;
+
+    const query = `
+      query($fullPath: ID!, $after: String, $includeSubgroups: Boolean!, $pageSize: Int!) {
+        group(fullPath: $fullPath) {
+          projects(includeSubgroups: $includeSubgroups, first: $pageSize, after: $after) {
+            nodes {
+              fullPath
+              nameWithNamespace
+              httpUrlToRepo
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      }
+    `;
+
+    while (out.length < maxProjects) {
+      const resp = await this.graph.post("/graphql", {
+        query,
+        variables: { fullPath: groupFullPath, after, includeSubgroups, pageSize },
+      });
+
+      if (resp.data?.errors?.length) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(resp.data.errors)}`);
+      }
+
+      const projects = resp.data?.data?.group?.projects?.nodes || [];
+      const pageInfo = resp.data?.data?.group?.projects?.pageInfo;
+
+      out.push(...projects);
+
+      if (!pageInfo?.hasNextPage) break;
+      after = pageInfo.endCursor;
+    }
+
+    return out;
   }
 
   async getGroup(groupId) {
@@ -250,23 +298,19 @@ function validateAndConvertRegion(region) {
 }
 
 //  Build a mapping of: old http_url_to_repo -> new http_url_to_repo
-async function generateUrlMappingFile({ _, destUrl, sourceGroup, destinationGroupPath, sourceProjects }) {
+async function generateUrlMappingFile({ destUrl, sourceGroup, destinationGroupPath, sourceProjects }) {
   const destBase = destUrl.endsWith('/') ? destUrl.slice(0, -1) : destUrl;
   const urlMapping = {};
 
-  const groupPrefix = `${sourceGroup.full_path}/`;
-
   for (const project of sourceProjects) {
-    const oldRepoUrl = project.http_url_to_repo; // ends with .git
+    const oldRepoUrl = project.http_url_to_repo || project.httpUrlToRepo;
 
-    // path_with_namespace is like "group/subgroup/project-1"
-    let relativePath;
-    if (project.path_with_namespace.startsWith(groupPrefix)) {
-      relativePath = project.path_with_namespace.slice(groupPrefix.length);
-    } else {
-      // Fallback if for some reason full_path is not a prefix
-      relativePath = project.path_with_namespace;
-    }
+    const fullPath = project.path_with_namespace || project.fullPath || "";
+    const groupPrefix = `${sourceGroup.full_path}/`;
+
+    const relativePath = fullPath.startsWith(groupPrefix)
+      ? fullPath.slice(groupPrefix.length)
+      : fullPath;
 
     const newRepoUrl = `${destBase}/${destinationGroupPath}/${relativePath}.git`;
     urlMapping[oldRepoUrl] = newRepoUrl;
@@ -463,14 +507,24 @@ async function directTransfer(options) {
     console.log(`Fetching source group from ID: ${options.groupId}...`);
     const sourceGroup = await source.getGroup(options.groupId);
 
-    // let destinationGroupName = options.newName || sourceGroup.name;
     let destinationGroupPath = options.newName || sourceGroup.path;
 
-    const sourceProjects = await source.getGroupProjects(sourceGroup.id);
+    let sourceProjects;
+    try {
+      sourceProjects = await source.listGroupProjectsGraphQL(sourceGroup.full_path, {
+        includeSubgroups: true,
+        pageSize: 100,
+        maxProjects: 10000,
+      });
+    } catch (e) {
+      console.warn(`[WARN] GraphQL listing failed (${e.message}). Falling back to REST safe listing...`);
+      sourceProjects = await source.getGroupProjects(sourceGroup.id);
+    }
+    
     console.log(`Found ${sourceProjects.length} projects in source group`);
     if (sourceProjects.length > 0) {
       console.log('Projects to be migrated:');
-      sourceProjects.forEach(p => console.log(`${p.name_with_namespace}`));
+      sourceProjects.forEach(p => console.log(p.name_with_namespace || p.nameWithNamespace || p.fullPath));
     }
 
     if (options.newName) {
@@ -479,7 +533,6 @@ async function directTransfer(options) {
 
     // Generate URL mapping JSON before starting the migration
     await generateUrlMappingFile({
-      sourceUrl,
       destUrl,
       sourceGroup,
       destinationGroupPath,
