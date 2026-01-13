@@ -11,7 +11,7 @@ import { Command } from 'commander';
 import axios from 'axios';
 import readline from 'readline/promises';
 import { writeFile } from 'fs/promises';
-import { SOURCE_REGIONS } from '../config.js';
+import { COPY_PROJECT_GROUP_DESC, SOURCE_REGIONS } from '../config.js';
 import { getWithRetry } from './utils/requests.js';
 
 const HTTP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default
@@ -677,17 +677,8 @@ async function directTransfer(options) {
 }
 
 const command = new Command('copy-project-group')
-  // .description('Copies all Git Repos and Issue Tracking projects in a group to another region.')
-  .addHelpText(
-    'beforeAll',
-    `
-Copies all Git Repos and Issue Tracking projects in a group to another region.
-
-Examples:
-  npx @ibm-cloud/cd-tools copy-project-group -g "1796019" -s ca-tor -d us-south --st \${PAT_CA_TOR} --dt \${PAT_US_SOUTH}
-      Copy all the Git Repos and Issue Tracking projects in the group "mygroup" from the Toronto region to the Dallas, with the same group name.
-`
-  )
+  .summary('Copies all Git Repos and Issue Tracking projects in a group to another region.')
+  .description(COPY_PROJECT_GROUP_DESC)
   .requiredOption('-s, --source-region <region>', 'The source region from which to copy the project group (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")')
   .requiredOption('-d, --dest-region <region>', 'The destination region to copy the projects to (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")')
   .requiredOption('--st, --source-token <token>', 'A Git Repos and Issue Tracking personal access token from the source region. The api scope is required on the token.')
