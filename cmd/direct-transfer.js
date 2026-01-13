@@ -11,7 +11,7 @@ import { Command } from 'commander';
 import axios from 'axios';
 import readline from 'readline/promises';
 import { writeFile } from 'fs/promises';
-import { SOURCE_REGIONS } from '../config.js';
+import { COPY_PROJECT_GROUP_DESC, SOURCE_REGIONS } from '../config.js';
 import { getWithRetry } from './utils/requests.js';
 
 const HTTP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default
@@ -480,7 +480,7 @@ async function handleBulkImportConflict({ destination, destUrl, sourceGroupFullP
         }
 
         console.log(`\nConflict detected: ${importResErr}`);
-        console.log(`Please specify a new group name using -n, --new-name <n> when trying again`);
+        console.log(`Please specify a new group name using -n, --new-group-slug <n> when trying again`);
         console.log(`\nGroup already migrated.`);
         if (groupUrl) console.log(`Migrated group: ${groupUrl}`);
         if (historyUrl) console.log(`Group import history: ${historyUrl}`);
@@ -507,7 +507,7 @@ async function directTransfer(options) {
     console.log(`Fetching source group from ID: ${options.groupId}...`);
     const sourceGroup = await source.getGroup(options.groupId);
 
-    let destinationGroupPath = options.newName || sourceGroup.path;
+    let destinationGroupPath = options.newGroupSlug || sourceGroup.path;
 
     let sourceProjects;
     try {
@@ -527,8 +527,8 @@ async function directTransfer(options) {
       sourceProjects.forEach(p => console.log(p.name_with_namespace || p.nameWithNamespace || p.fullPath));
     }
 
-    if (options.newName) {
-      await promptUser(options.newName);
+    if (options.newGroupSlug) {
+      await promptUser(options.newGroupSlug);
     }
 
     // Generate URL mapping JSON before starting the migration
@@ -677,13 +677,14 @@ async function directTransfer(options) {
 }
 
 const command = new Command('copy-project-group')
-  .description('Bulk migrate GitLab group projects')
-  .requiredOption('-s, --source-region <region>', 'Source GitLab instance region')
-  .requiredOption('-d, --dest-region <region>', 'Destination GitLab instance region')
-  .requiredOption('--st, --source-token <token>', 'Source GitLab access token')
-  .requiredOption('--dt, --dest-token <token>', 'Destination GitLab access token')
-  .requiredOption('-g, --group-id <id>', 'Source group ID to migrate')
-  .option('-n, --new-name <n>', 'New group path (optional)')
+  .summary('Copies all Git Repos and Issue Tracking projects in a group to another region.')
+  .description(COPY_PROJECT_GROUP_DESC)
+  .requiredOption('-s, --source-region <region>', 'The source region from which to copy the project group (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")')
+  .requiredOption('-d, --dest-region <region>', 'The destination region to copy the projects to (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")')
+  .requiredOption('--st, --source-token <token>', 'A Git Repos and Issue Tracking personal access token from the source region. The api scope is required on the token.')
+  .requiredOption('--dt, --dest-token <token>', 'A Git Repos and Issue Tracking personal access token from the target region. The api scope is required on the token.')
+  .requiredOption('-g, --group-id <id>', 'The id of the group to copy from the source region (e.g. "1796019"), or the group name (e.g. "mygroup") for top-level groups. For sub-groups, a path is also allowed, e.g. "mygroup/subgroup"')
+  .option('-n, --new-group-slug <slug>', '(Optional) Destination group URL slug (single path segment, e.g. "mygroup-copy"). Must be unique. Group display name remains the same as source.')
   .showHelpAfterError()
   .hook('preAction', cmd => cmd.showHelpAfterError(false)) // only show help during validation
   .action(async (options) => {

@@ -17,7 +17,13 @@ Examples:
       Copy a toolchain to the Frankfurt region with the specified name and target resource group, using the given API key
 
 Environment Variables:
-  IBMCLOUD_API_KEY                       API key used to authenticate. Must have IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group`
+  IBMCLOUD_API_KEY                       API key used to authenticate. Must have IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group`;
+
+const COPY_PROJECT_GROUP_DESC = `Copies all Git Repos and Issue Tracking projects in a group to another region.
+
+Examples:
+  npx @ibm-cloud/cd-tools copy-project-group -g "1796019" -s ca-tor -d us-south --st \${PAT_CA_TOR} --dt \${PAT_US_SOUTH}
+      Copy all the Git Repos and Issue Tracking projects in the group "mygroup" from the Toronto region to the Dallas, with the same group name.`;
 
 const DOCS_URL = 'https://github.com/IBM/continuous-delivery-tools';
 
@@ -222,6 +228,7 @@ const VAULT_REGEX = [
 
 export {
 	COPY_TOOLCHAIN_DESC,
+	COPY_PROJECT_GROUP_DESC,
 	DOCS_URL,
 	SOURCE_REGIONS,
 	TARGET_REGIONS,
