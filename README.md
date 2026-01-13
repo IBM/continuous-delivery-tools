@@ -72,17 +72,22 @@ The `copy-project-group` command copies a [group](https://docs.gitlab.com/user/g
 ### Usage
 ```shell-session
 $ npx @ibm-cloud/cd-tools copy-project-group -h
+Copies all Git Repos and Issue Tracking projects in a group to another region.
+
+Examples:
+  npx @ibm-cloud/cd-tools copy-project-group -g "1796019" -s ca-tor -d us-south --st ${PAT_CA_TOR} --dt ${PAT_US_SOUTH}
+      Copy all the Git Repos and Issue Tracking projects in the group "mygroup" from the Toronto region to the Dallas, with the same group name.
+
 Usage: @ibm-cloud/cd-tools copy-project-group [options]
 
-Bulk migrate GitLab group projects
-
 Options:
-  -s, --source-region <region>  Source GitLab instance region
-  -d, --dest-region <region>    Destination GitLab instance region
-  --st, --source-token <token>  Source GitLab access token
-  --dt, --dest-token <token>    Destination GitLab access token
-  -g, --group-id <id>           Source group ID to migrate
-  -n, --new-name <n>            New group path (optional)
+  -s, --source-region <region>  The source region from which to copy the project group (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
+  -d, --dest-region <region>    The destination region to copy the projects to (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
+  --st, --source-token <token>  A Git Repos and Issue Tracking personal access token from the source region. The api scope is required on the token.
+  --dt, --dest-token <token>    A Git Repos and Issue Tracking personal access token from the target region. The api scope is required on the token.
+  -g, --group-id <id>           The id of the group to copy from the source region (e.g. "1796019"), or the group name (e.g. "mygroup") for top-level groups. For sub-groups, a path
+                                is also allowed, e.g. "mygroup/subgroup"
+  -n, --new-group-slug <slug>   (Optional) Destination group URL slug (single path segment, e.g. "mygroup-copy"). Must be unique. Group display name remains the same as source.
   -h, --help                    display help for command
 ```
 
