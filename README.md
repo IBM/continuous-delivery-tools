@@ -72,13 +72,13 @@ The `copy-project-group` command copies a [group](https://docs.gitlab.com/user/g
 ### Usage
 ```shell-session
 $ npx @ibm-cloud/cd-tools copy-project-group -h
+Usage: @ibm-cloud/cd-tools copy-project-group [options]
+
 Copies all Git Repos and Issue Tracking projects in a group to another region.
 
 Examples:
   npx @ibm-cloud/cd-tools copy-project-group -g "1796019" -s ca-tor -d us-south --st ${PAT_CA_TOR} --dt ${PAT_US_SOUTH}
       Copy all the Git Repos and Issue Tracking projects in the group "mygroup" from the Toronto region to the Dallas, with the same group name.
-
-Usage: @ibm-cloud/cd-tools copy-project-group [options]
 
 Options:
   -s, --source-region <region>  The source region from which to copy the project group (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
@@ -158,7 +158,7 @@ Advanced options:
   -d, --terraform-dir <path>             (Optional) The target local directory to store the generated Terraform (.tf) files
   -D, --dry-run                          (Optional) Skip running terraform apply; only generate the Terraform (.tf) files
   -f, --force                            (Optional) Force the copy toolchain command to run without user confirmation
-  -S, --skip-s2s                         (Optional) Skip importing toolchain-generated service-to-service authorizations
+  -S, --skip-s2s                         (Optional) Skip creating toolchain-generated service-to-service authorizations
   -T, --skip-disable-triggers            (Optional) Skip disabling Tekton pipeline Git or timed triggers. Note: This may result in duplicate pipeline runs
   -C, --compact                          (Optional) Generate all resources in a single resources.tf file
   -v, --verbose                          (Optional) Increase log output
