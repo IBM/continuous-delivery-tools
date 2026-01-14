@@ -505,7 +505,21 @@ async function directTransfer(options) {
 
   try {
     console.log(`Fetching source group from ID: ${options.groupId}...`);
-    const sourceGroup = await source.getGroup(options.groupId);
+    let sourceGroup;
+    try {
+      sourceGroup = await source.getGroup(options.groupId);
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        console.error(
+          `Error: group "${options.groupId}" not found in source region "${options.sourceRegion}".\n` +
+          `Tip: -g accepts numeric ID or full group path like "parent/subgroup".`
+        );
+        return 1;
+      }
+
+      console.error(`Error: failed to fetch group "${options.groupId}": ${err?.message || err}`);
+      return 1;
+    }
 
     let destinationGroupPath = options.newGroupSlug || sourceGroup.path;
 
