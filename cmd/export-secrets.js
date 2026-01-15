@@ -280,7 +280,7 @@ async function main(options) {
                     const commonProps = {
                         toolchain_id: toolchainId,
                         destination: {
-                            is_private: false, // TODO: set this back to 'true' once 'otc-api' has the 'export_secret' endpoint, should always use SM private endpoint
+                            is_private: true,
                             is_production: CLOUD_PLATFORM === 'cloud.ibm.com',
                             secrets_manager_crn: smInstance.crn,
                             secret_name: smSecretName,
