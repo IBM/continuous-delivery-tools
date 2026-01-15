@@ -45,7 +45,7 @@ function searchDirectory(currentPath) {
 }
 
 export function parseTcIdAndRegion(output) {
-    const pattern = /See cloned toolchain: https:\/\/cloud\.ibm\.com\/devops\/toolchains\/([a-zA-Z0-9-]+)\?env_id=ibm\:yp\:([a-zA-Z0-9-]+)/;
+    const pattern = /Cloned toolchain: https:\/\/cloud\.ibm\.com\/devops\/toolchains\/([a-zA-Z0-9-]+)\?env_id=ibm\:yp\:([a-zA-Z0-9-]+)/;
     const match = output.match(pattern);
 
     if (match) {

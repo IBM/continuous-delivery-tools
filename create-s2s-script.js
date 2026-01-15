@@ -106,7 +106,7 @@ async function createS2sAuthPolicy(bearer, item) {
             return Promise.reject(`Failed to create service-to-service authorization policy for ${item['serviceId']} '${item['parameters']['label'] ?? item['parameters']['name']}' with status: ${response.status} ${response.statusText}`);
         }
     } catch (error) {
-        return Promise.reject(`Failed to create service-to-service authorization policy for ${item['serviceId']} '${error.message}`);
+        return Promise.reject(`Failed to create service-to-service authorization policy for ${item['serviceId']}: ${error.message}`);
     }
 }
 

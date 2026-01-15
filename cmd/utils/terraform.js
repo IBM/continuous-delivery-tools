@@ -408,7 +408,7 @@ async function runTerraformApply(skipTfConfirmation, outputDir, verbosity, targe
         command = 'terraform apply -auto-approve';
     }
     if (target) {
-        command += ` -target="${target}"`
+        command += ` -target="${target}" -compact-warnings`
     }
 
     const child = child_process.spawn(command, {
@@ -431,7 +431,7 @@ async function runTerraformApply(skipTfConfirmation, outputDir, verbosity, targe
 
     child.stderr.on('data', (chunk) => {
         const text = chunk.toString();
-        if (verbosity >= 1) {
+        if (verbosity >= 0) { // errors should still surface in quiet mode
             process.stderr.write(text);
             logger.dump(text);
         }
