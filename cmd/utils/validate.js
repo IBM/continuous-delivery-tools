@@ -104,7 +104,8 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
 
         if (hasBoth) {
             // warning! prompt user to cancel, rename (e.g. add a suffix) or continue
-            logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Region: ${targetRegion}\n - Resource Group: ${targetResourceGroupName} (${targetResourceGroupId})`, '', true);
+            logger.warn(`\nWarning! A toolchain named "${tcName}" already exists in:\n - Region: ${targetRegion}\n - Resource Group: ${targetResourceGroupName} (${targetResourceGroupId})`, '', true);
+            logger.print(''); // newline for spacing
 
             if (!skipPrompt) {
                 newTcName = await promptUserInput(`\n(Recommended) Edit the cloned toolchain's name [default: ${tcName}] (Ctrl-C to abort):\n`, tcName, validateToolchainName);
@@ -112,7 +113,7 @@ async function warnDuplicateName(token, accountId, tcName, srcRegion, targetRegi
         } else {
             if (hasSameRegion) {
                 // soft warning of confusion
-                logger.warn(`\nWarning! A toolchain named '${tcName}' already exists in:\n - Region: ${targetRegion}`, '', true);
+                logger.warn(`\nWarning! A toolchain named "${tcName}" already exists in:\n - Region: ${targetRegion}`, '', true);
             }
         }
 
