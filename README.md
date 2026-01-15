@@ -106,7 +106,7 @@ The `copy-toolchain` command copies a [toolchain](https://cloud.ibm.com/docs/Con
 7. Git Repos and Issue Tracking tool integrations that use Personal Access Tokens (PATs) for authentication will automatically be converted to use OAuth. You can re-configure the tool integrations after copying to use a PAT again.
 
 ### Prerequisites
-- An [IBM Cloud API key](https://cloud.ibm.com/docs/account?topic=account-manapikey) with the IAM access listed below.
+- An [IBM Cloud API key](https://cloud.ibm.com/docs/account?topic=account-manapikey) with the IAM access listed below. The API key must be user API key. Service ID API keys are not supported.
 - **Viewer** access for the source Toolchain(s) being copied
 - **Editor** access for creating new Toolchains in the target region
 - **Administrator** access for other IBM Cloud service instances that have a tool integration with IAM service-to-service authorizations, such as [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager?topic=secrets-manager-getting-started), [Event Notifications](https://cloud.ibm.com/docs/event-notifications?topic=event-notifications-getting-started), etc.
@@ -143,12 +143,12 @@ Examples:
       Copy a toolchain to the Frankfurt region with the specified name and target resource group, using the given API key
 
 Environment Variables:
-  IBMCLOUD_API_KEY                       API key used to authenticate. Must have IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group
+  IBMCLOUD_API_KEY                       API key used to authenticate. Must be a user API key, with IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group
 
 Basic options:
   -c, --toolchain-crn <crn>              The CRN of the source toolchain to copy
   -r, --region <region>                  The destination region of the copied toolchain (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
-  -a, --apikey <api_key>                 API key used to authenticate. Must have IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group
+  -a, --apikey <api_key>                 API key used to authenticate. Must be a user API key, with IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group
   -n, --name <name>                      (Optional) The name of the copied toolchain (default: same name as original)
   -g, --resource-group <resource_group>  (Optional) The name or ID of destination resource group of the copied toolchain (default: same resource group as original)
   -t, --tag <tag>                        (Optional) The tag to add to the copied toolchain
