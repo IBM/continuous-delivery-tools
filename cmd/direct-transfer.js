@@ -11,8 +11,10 @@ import { Command } from 'commander';
 import axios from 'axios';
 import readline from 'readline/promises';
 import { writeFile } from 'fs/promises';
-import { COPY_PROJECT_GROUP_DESC, SOURCE_REGIONS } from '../config.js';
+import { COPY_PROJECT_GROUP_DESC, SOURCE_REGIONS, TARGET_REGIONS } from '../config.js';
 import { getWithRetry } from './utils/requests.js';
+import Papa from 'papaparse';
+import fs from 'fs';
 
 const HTTP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default
 
@@ -158,8 +160,23 @@ class GitLabClient {
     return out;
   }
 
+  async getGroupPlaceholderCsv(groupId) {
+    const response = await this.client.get(`/groups/${groupId}/placeholder_reassignments`);
+    return response.data;
+  }
+
+  async reassignGroupPlaceholder(groupId, form) {
+    const response = await this.client.postForm(`/groups/${groupId}/placeholder_reassignments`, form);
+    return response.data;
+  }
+
   async getGroup(groupId) {
     const response = await this.client.get(`/groups/${groupId}`);
+    return response.data;
+  }
+
+  async syncUser(syncData) {
+    const response = await this.client.post(`https://otc-github-consolidated-broker.${syncData.destRegion}.devops.cloud.ibm.com/git-user-sync`, syncData);
     return response.data;
   }
 
@@ -656,6 +673,31 @@ async function directTransfer(options) {
     const entities = await destination.getBulkImportEntities(bulkImport.id);
     const finishedEntities = entities.filter(e => e.status === 'finished');
     const failedEntities = entities.filter(e => e.status === 'failed');
+
+    const getGroupPlaceholderCsvData = await destination.getGroupPlaceholderCsv(destinationGroupPath);
+    const groupPlaceholders = Papa.parse(getGroupPlaceholderCsvData, { header: true, skipEmptyLines: true }).data;
+    console.log(JSON.stringify(groupPlaceholders));
+
+    for (let i = 0; i < groupPlaceholders.length; i++) {
+      console.log(JSON.stringify(groupPlaceholders[i]));
+      const { username: destinationUsername } = await destination.syncUser({
+        sourceRegion: options.sourceRegion,
+        destRegion: options.destRegion,
+        groupId: destinationGroupPath,
+        userId: groupPlaceholders[i]['Source user identifier'],
+      });
+      console.log(destinationUsername);
+      groupPlaceholders[i]['GitLab username'] = destinationUsername;
+    }
+
+    const csvForm = Papa.unparse(groupPlaceholders);
+    fs.writeFileSync('groupPlaceholders.csv', csvForm, 'utf8');
+    const csvConfig = {
+      file : fs.createReadStream('groupPlaceholders.csv')
+    };
+
+    const reassignGroupPlaceholderData = await destination.reassignGroupPlaceholder(destinationGroupPath, csvConfig);
+    console.log(reassignGroupPlaceholderData);
 
     if (importStatus === 'finished' && finishedEntities.length > 0) {
       console.log(`\nGroup migration completed successfully!`);
