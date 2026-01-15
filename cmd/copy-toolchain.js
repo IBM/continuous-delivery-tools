@@ -335,7 +335,7 @@ async function main(options) {
 
 			const hasS2SFailures = fs.existsSync(resolve(`${outputDir}/.s2s-script-failures-${TIME_SUFFIX}`));
 			if (hasS2SFailures) {
-				logger.print('');
+				logger.print(''); // newline for spacing
 				logger.warn(`Warning! One or more service-to-service auth policies could not be created! See ${outputDir}/.s2s-script-failures-${TIME_SUFFIX} for more details.\n`, LOG_STAGES.setup, true);
 			}
 
