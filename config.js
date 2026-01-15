@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -17,7 +17,7 @@ Examples:
       Copy a toolchain to the Frankfurt region with the specified name and target resource group, using the given API key
 
 Environment Variables:
-  IBMCLOUD_API_KEY                       API key used to authenticate. Must have IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group`;
+  IBMCLOUD_API_KEY                       API key used to authenticate. Must be a user API key, with IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group`;
 
 const COPY_PROJECT_GROUP_DESC = `Copies all Git Repos and Issue Tracking projects in a group to another region.
 
