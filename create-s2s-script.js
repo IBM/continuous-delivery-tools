@@ -123,7 +123,7 @@ getBearer().then(async (bearer) => {
 
     const inputArr = JSON.parse(fs.readFileSync(INPUT_PATH));
 
-    const promises = [Promise.reject(1), Promise.reject(2), Promise.reject(3)];
+    const promises = [];
     inputArr.forEach((item) => {
         promises.push(createS2sAuthPolicy(bearer, item));
     });
