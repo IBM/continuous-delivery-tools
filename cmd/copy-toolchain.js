@@ -283,7 +283,8 @@ async function main(options) {
 			moreTfResources: moreTfResources,
 			gritMapping: gritMapping,
 			skipUserConfirmation: skipUserConfirmation,
-			includeS2S: includeS2S
+			includeS2S: includeS2S,
+			timeSuffix: TIME_SUFFIX
 		});
 	} catch (err) {
 		if (err.message && err.stack) {
@@ -332,8 +333,11 @@ async function main(options) {
 			// create toolchain, which invokes script to create s2s if applicable
 			await runTerraformApply(true, outputDir, verbosity, `ibm_cd_toolchain.${toolchainTfName}`);
 
-			const hasS2SFailures = fs.existsSync(resolve(`${outputDir}/.s2s-script-failures`));
-			if (hasS2SFailures) logger.warn('\nWarning! One or more service-to-service auth policies could not be created!\n', LOG_STAGES.setup, true);
+			const hasS2SFailures = fs.existsSync(resolve(`${outputDir}/.s2s-script-failures-${TIME_SUFFIX}`));
+			if (hasS2SFailures) {
+				logger.print(''); // newline for spacing
+				logger.warn(`Warning! One or more service-to-service auth policies could not be created! See ${outputDir}/.s2s-script-failures-${TIME_SUFFIX} for more details.\n`, LOG_STAGES.setup, true);
+			}
 
 			// create the rest
 			await runTerraformApply(skipUserConfirmation, outputDir, verbosity).catch((err) => {
@@ -346,7 +350,7 @@ async function main(options) {
 
 			if (verbosity >= 1) logger.print(''); // newline for spacing
 			logger.info(`Toolchain "${sourceToolchainData['name']}" from ${sourceRegion} was cloned to "${targetToolchainName ?? sourceToolchainData['name']}" in ${targetRegion} ${applyErrors ? 'with some errors' : 'successfully'}, with ${numResourcesCreated} / ${numResourcesPlanned} resources created!`, LOG_STAGES.info, true);
-			if (hasS2SFailures) logger.warn('One or more service-to-service auth policies could not be created, see .s2s-script-failures for more details.');
+			if (hasS2SFailures) logger.warn(`One or more service-to-service auth policies could not be created, see ${outputDir}/.s2s-script-failures-${TIME_SUFFIX} for more details.`, '', true);
 			if (newTcId) logger.info(`Cloned toolchain: https://${CLOUD_PLATFORM}/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
 		} else {
 			logger.info(`DRY_RUN: ${dryRun}, skipping terraform apply...`, LOG_STAGES.tf);
