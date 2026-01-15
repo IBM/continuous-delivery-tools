@@ -68,7 +68,7 @@ async function initProviderFile(targetRegion, dir) {
     return writeFilePromise(`${dir}/provider.tf`, jsonToTf(newProviderTfStr));
 }
 
-async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, targetToolchainName, targetRgId, disableTriggers, isCompact, outputDir, tempDir, moreTfResources, gritMapping, skipUserConfirmation, includeS2S }) {
+async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, targetToolchainName, targetRgId, disableTriggers, isCompact, outputDir, tempDir, moreTfResources, gritMapping, skipUserConfirmation, includeS2S, timeSuffix }) {
     const promises = [];
 
     const writeProviderPromise = await initProviderFile(targetRegion, outputDir);
@@ -359,7 +359,9 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
 
         const newTfFileObjStr = JSON.stringify(newTfFileObj);
         let newTfFile = replaceDependsOn(jsonToTf(newTfFileObjStr));
-        if (includeS2S && (isCompact || resourceName === 'ibm_cd_toolchain')) newTfFile = addS2sScriptToToolchainTf(newTfFile);
+        if (includeS2S && (isCompact || resourceName === 'ibm_cd_toolchain')) {
+            newTfFile = addS2sScriptToToolchainTf(newTfFile, timeSuffix);
+        }
         const copyResourcesPromise = writeFilePromise(`${outputDir}/${fileName}`, newTfFile);
         promises.push(copyResourcesPromise);
     }
@@ -487,7 +489,7 @@ function replaceDependsOn(str) {
     }
 }
 
-function addS2sScriptToToolchainTf(str) {
+function addS2sScriptToToolchainTf(str, timeSuffix) {
     const provisionerStr = (tfName) => `\n\n  provisioner "local-exec" {
     command = "node create-s2s-script.cjs"
     on_failure = continue
@@ -496,6 +498,7 @@ function addS2sScriptToToolchainTf(str) {
       TARGET_TOOLCHAIN_ID = ibm_cd_toolchain.${tfName}.id
       IBMCLOUD_PLATFORM = "${CLOUD_PLATFORM}"
       IAM_BASE_URL = "${IAM_BASE_URL}"
+      GENERATED_TIME = "${timeSuffix}" # corresponds with error log
     }\n  }`
     try {
         if (typeof str === 'string') {

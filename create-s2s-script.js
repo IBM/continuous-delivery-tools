@@ -23,8 +23,11 @@ if (!CLOUD_PLATFORM) throw Error(`Missing 'IBMCLOUD_PLATFORM'`);
 const IAM_BASE_URL = process.env['IAM_BASE_URL'] || 'https://iam.cloud.ibm.com';
 if (!IAM_BASE_URL) throw Error(`Missing 'IAM_BASE_URL'`);
 
+const GENERATED_TIME = process.env['GENERATED_TIME'];
+if (!GENERATED_TIME) throw Error(`Missing 'GENERATED_TIME'`);
+
 const INPUT_PATH = resolve('create-s2s.json');
-const ERROR_PATH = resolve('.s2s-script-failures');
+const ERROR_PATH = resolve(`.s2s-script-failures-${GENERATED_TIME}`);
 
 async function getBearer() {
     const url = `${IAM_BASE_URL}/identity/token`;
@@ -120,17 +123,28 @@ getBearer().then(async (bearer) => {
 
     const inputArr = JSON.parse(fs.readFileSync(INPUT_PATH));
 
-    const promises = [];
+    const promises = [Promise.reject(1), Promise.reject(2), Promise.reject(3)];
     inputArr.forEach((item) => {
         promises.push(createS2sAuthPolicy(bearer, item));
     });
 
-    try {
-        await Promise.all(promises);
-    } catch (e) {
-        console.error(e);
-        // create temp file on error
-        fs.writeFileSync(ERROR_PATH, e);
-        exit(1);
-    }
+    await Promise.allSettled(promises).then((res) => {
+        const rejectReasons = res.filter(r => r.status === 'rejected').map(r => r.reason);
+
+        if (rejectReasons.length > 0) {
+            let errFileContents = '';
+            rejectReasons.forEach((reason) => {
+                console.error(reason);
+                // create temp file on error
+                errFileContents += reason;
+                errFileContents += '\n';
+            });
+            fs.writeFileSync(ERROR_PATH, errFileContents);
+            exit(1);
+        }
+    });
+}).catch((reason) => {
+    console.error(reason);
+    // create temp file on error
+    fs.writeFileSync(ERROR_PATH, reason + '\n');
 });
