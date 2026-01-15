@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -66,7 +66,7 @@ async function main(options) {
             toolchainData = await getToolchain(bearer, toolchainId, region);
         }
         await logger.withSpinner(getToolchainData, `Reading Toolchain`, 'Valid Toolchain found!');
-        logger.print(`Name: ${toolchainData.name}\nRegion: ${region}\nResource Group ID: ${toolchainData.resource_group_id}\nURL:https://${CLOUD_PLATFORM}/devops/toolchains/${toolchainId}?env_id=ibm:yp:${region}\n`);
+        logger.print(`Name: ${toolchainData.name}\nRegion: ${region}\nResource Group ID: ${toolchainData.resource_group_id}\nURL: https://${CLOUD_PLATFORM}/devops/toolchains/${toolchainId}?env_id=ibm:yp:${region}\n`);
 
         // Check for plain-text secrets in all tools
         const exportSecrets = async () => {
@@ -256,7 +256,7 @@ async function main(options) {
                     continue;
                 }
 
-                const smSecretName = await promptUserInput(`Enter the name of the secret to create [${secretPath}]: `, '', async (input) => {
+                const smSecretName = await promptUserInput(`Enter the name of the secret to create [${secretPath}]: `, secretPath, async (input) => {
                     if (input.length < 2 || input.length > 256) {
                         throw new Error('The secret name must be between 2 and 256 characters long.');
                     }
