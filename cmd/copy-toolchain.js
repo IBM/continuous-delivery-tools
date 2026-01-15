@@ -28,7 +28,7 @@ import { importTerraform } from './utils/import-terraform.js';
 
 import { COPY_TOOLCHAIN_DESC, TARGET_REGIONS, SOURCE_REGIONS } from '../config.js';
 
-import packageJson from '../package.json' with { type: "json" };
+import packageJson from '../package.json' with { type: 'json' };
 
 const TIME_SUFFIX = new Date().getTime();
 const LOGS_DIR = '.logs';
@@ -112,7 +112,7 @@ async function main(options) {
 		// check for continuous delivery instance in target region
 		if (!await getCdInstanceByRegion(bearer, accountId, targetRegion)) {
 			// give users the option to bypass
-			logger.warn(`Warning! Could not find a Continuous Delivery instance in the target region '${targetRegion}' or you do not have permission to view, please create one before proceeding if one does not exist already.`, LOG_STAGES.setup);
+			logger.warn(`Warning! Could not find a Continuous Delivery instance in the target region ${targetRegion} or you do not have permission to view, please create one before proceeding if one does not exist already.`, LOG_STAGES.setup);
 			await promptUserConfirmation(`Do you want to proceed anyway?`, 'yes', 'Toolchain migration cancelled.');
 		}
 
@@ -224,6 +224,8 @@ async function main(options) {
 	let s2sAuthTools; // to create s2s auth with script
 
 	try {
+		logger.info(`Copying toolchain "${sourceToolchainData['name']}" from ${sourceRegion} to ${targetRegion}...`, LOG_STAGES.info, true);
+
 		let nonSecretRefs;
 
 		const importTerraformWrapper = async () => {
@@ -244,13 +246,15 @@ async function main(options) {
 			LOG_STAGES.import
 		);
 
-		if (nonSecretRefs.length > 0) logger.warn(`\nWarning! The following generated terraform resource contains hashed secret(s) that cannot be migrated, applying without changes may result in error(s):`);
-		logger.table(nonSecretRefs);
+		if (nonSecretRefs.length > 0) {
+			logger.warn(`Warning! The following generated terraform resource contains hashed secret(s) that cannot be migrated, applying without changes may result in error(s):`, LOG_STAGES.setup, true);
+			logger.table(nonSecretRefs);
+		}
 
 	} catch (err) {
 		if (err.message && err.stack) {
 			const errMsg = verbosity > 1 ? err.stack : err.message;
-			logger.error(errMsg, LOG_STAGES.terraformer);
+			logger.error(errMsg, LOG_STAGES.import);
 		}
 		await handleCleanup();
 		exit(1);
@@ -329,7 +333,7 @@ async function main(options) {
 			await runTerraformApply(true, outputDir, verbosity, `ibm_cd_toolchain.${toolchainTfName}`);
 
 			const hasS2SFailures = fs.existsSync(resolve(`${outputDir}/.s2s-script-failures`));
-			if (hasS2SFailures) logger.warn('\nWarning! One or more service-to-service auth policies could not be created!\n');
+			if (hasS2SFailures) logger.warn('\nWarning! One or more service-to-service auth policies could not be created!\n', LOG_STAGES.setup, true);
 
 			// create the rest
 			await runTerraformApply(skipUserConfirmation, outputDir, verbosity).catch((err) => {
@@ -340,13 +344,15 @@ async function main(options) {
 			const newTcId = await getNewToolchainId(outputDir);
 			const numResourcesCreated = await getNumResourcesCreated(outputDir);
 
-			logger.print('\n');
-			logger.info(`Toolchain "${sourceToolchainData['name']}" from ${sourceRegion} was cloned to "${targetToolchainName ?? sourceToolchainData['name']}" in ${targetRegion} ${applyErrors ? 'with some errors' : 'successfully'}, with ${numResourcesCreated} / ${numResourcesPlanned} resources created!`, LOG_STAGES.info);
+			if (verbosity >= 1) logger.print(''); // newline for spacing
+			logger.info(`Toolchain "${sourceToolchainData['name']}" from ${sourceRegion} was cloned to "${targetToolchainName ?? sourceToolchainData['name']}" in ${targetRegion} ${applyErrors ? 'with some errors' : 'successfully'}, with ${numResourcesCreated} / ${numResourcesPlanned} resources created!`, LOG_STAGES.info, true);
 			if (hasS2SFailures) logger.warn('One or more service-to-service auth policies could not be created, see .s2s-script-failures for more details.');
-			if (newTcId) logger.info(`See cloned toolchain: https://${CLOUD_PLATFORM}/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
+			if (newTcId) logger.info(`Cloned toolchain: https://${CLOUD_PLATFORM}/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
 		} else {
 			logger.info(`DRY_RUN: ${dryRun}, skipping terraform apply...`, LOG_STAGES.tf);
+			logger.info(`Successfully generated files for cloning toolchain "${sourceToolchainData['name']}" from ${sourceRegion} to "${targetToolchainName ?? sourceToolchainData['name']}" in ${targetRegion}.`, LOG_STAGES.info, true);
 		}
+		logger.info(`Output directory: ${outputDir}`, LOG_STAGES.info, true);
 	} catch (err) {
 		if (err.message && err.stack) {
 			const errMsg = verbosity > 1 ? err.stack : err.message;
