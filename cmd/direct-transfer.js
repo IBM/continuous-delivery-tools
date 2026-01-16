@@ -9,12 +9,13 @@
 
 import { Command } from 'commander';
 import axios from 'axios';
-import readline from 'readline/promises';
 import { writeFile } from 'fs/promises';
 import { COPY_PROJECT_GROUP_DESC, SOURCE_REGIONS } from '../config.js';
 import { getWithRetry } from './utils/requests.js';
 import Papa from 'papaparse';
 import fs from 'fs';
+import { logger, LOG_STAGES } from './utils/logger.js';
+import { promptUserYesNo } from './utils/utils.js';
 
 const HTTP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default
 
@@ -41,8 +42,9 @@ class GitLabClient {
     const toVisit = [groupId];
     const visited = new Set();
 
-    console.log(
-      `[DEBUG] Starting BFS project listing from group ${groupId} (maxProjects=${maxProjects}, maxRequests=${maxRequests})`
+    logger.debug(
+      `Starting BFS project listing from group ${groupId} (maxProjects=${maxProjects}, maxRequests=${maxRequests})`,
+      LOG_STAGES.setup
     );
 
     while (toVisit.length > 0) {
@@ -50,7 +52,7 @@ class GitLabClient {
       if (visited.has(currentGroupId)) continue;
       visited.add(currentGroupId);
 
-      console.log(`[DEBUG] Visiting group ${currentGroupId}. Remaining groups in queue: ${toVisit.length}`);
+      logger.debug(`Visiting group ${currentGroupId}. Remaining groups in queue: ${toVisit.length}`, LOG_STAGES.setup);
 
       // List projects for THIS group (no include_subgroups!)
       let projPage = 1;
@@ -58,7 +60,7 @@ class GitLabClient {
 
       while (hasMoreProjects) {
         if (requestCount >= maxRequests || projects.length >= maxProjects) {
-          console.warn(`[WARN] Stopping project traversal: requestCount=${requestCount}, projects=${projects.length}`);
+          logger.warn(`Stopping project traversal early: requestCount=${requestCount}, projects=${projects.length}`, LOG_STAGES.setup);
           return projects;
         }
 
@@ -84,9 +86,7 @@ class GitLabClient {
 
       while (hasMoreSubgroups) {
         if (requestCount >= maxRequests) {
-          console.warn(
-            `[WARN] Stopping subgroup traversal: requestCount=${requestCount}`
-          );
+          logger.warn(`Stopping subgroup traversal early: requestCount=${requestCount}`, LOG_STAGES.setup);
           return projects;
         }
 
@@ -112,7 +112,7 @@ class GitLabClient {
       }
     }
 
-    console.log(`[DEBUG] Finished BFS project listing. Total projects=${projects.length}, total requests=${requestCount}`);
+    logger.debug(`Finished BFS project listing. Total projects=${projects.length}, total requests=${requestCount}`, LOG_STAGES.setup);
     return projects;
   }
 
@@ -288,23 +288,6 @@ class GitLabClient {
   }
 }
 
-async function promptUser(name) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  const answer = await rl.question(`Your new group name is ${name}. Are you sure? (Yes/No)`);
-
-  rl.close();
-
-  if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
-    console.log("Proceeding...");
-  } else {
-    process.exit(0);
-  }
-}
-
 function validateAndConvertRegion(region) {
   if (!SOURCE_REGIONS.includes(region)) {
     throw new Error(
@@ -339,8 +322,9 @@ async function generateUrlMappingFile({ destUrl, sourceGroup, destinationGroupPa
     encoding: 'utf8',
   });
 
-  console.log(`\nURL mapping JSON generated at: ${mappingFile}`);
-  console.log(`Total mapped projects: ${sourceProjects.length}`);
+  logger.print();
+  logger.info(`Created file mapping old project urls to new urls at: ${mappingFile}`, LOG_STAGES.info);
+  logger.info(`Total mapped projects: ${sourceProjects.length}`, LOG_STAGES.info);
 }
 
 function buildGroupImportHistoryUrl(destUrl) {
@@ -403,10 +387,12 @@ function summarizeBulkImportProgress(entities = []) {
 
   return {
     entityTotal,
+    entityFinished,
     entityDone,
     entityFailed,
     entityPct,
     projectTotal,
+    projectFinished,
     projectDone,
     projectFailed,
     projectPct,
@@ -452,9 +438,10 @@ async function handleBulkImportConflict({ destination, destUrl, sourceGroupFullP
   const historyUrl = buildGroupImportHistoryUrl(destUrl);
   const groupUrl = buildGroupUrl(destUrl, `/groups/${destinationGroupPath}`);
   const fallback = () => {
-    console.log(`\nDestination group already exists.`);
-    if (groupUrl) console.log(`Group: ${groupUrl}`);
-    if (historyUrl) console.log(`Group import history: ${historyUrl}`);
+    logger.print();
+    logger.warn(`Destination group already exists.`, LOG_STAGES.import);
+    if (groupUrl) logger.info(`Group: ${groupUrl}`, LOG_STAGES.import);
+    if (historyUrl) logger.info(`Group import history: ${historyUrl}`, LOG_STAGES.import);
     process.exit(0);
   };
 
@@ -489,18 +476,21 @@ async function handleBulkImportConflict({ destination, destUrl, sourceGroupFullP
         if (!matchesThisGroup) continue;
 
         if (status === 'created' || status === 'started') {
-          console.log(`\nGroup is already in migration...`);
-          console.log(`Bulk import ID: ${bi.id}`);
-          if (groupUrl) console.log(`Migrated group: ${groupUrl}`);
-          if (historyUrl) console.log(`Group import history: ${historyUrl}`);
+          logger.print();
+          logger.warn(`Group is already in migration...`, LOG_STAGES.import);
+          logger.info(`Bulk import ID: ${bi.id}`, LOG_STAGES.import);
+          if (groupUrl) logger.info(`Group URL: ${groupUrl}`, LOG_STAGES.import);
+          if (historyUrl) logger.info(`Group import history: ${historyUrl}`, LOG_STAGES.import);
           process.exit(0);
         }
 
-        console.log(`\nConflict detected: ${importResErr}`);
-        console.log(`Please specify a new group name using -n, --new-group-slug <n> when trying again`);
-        console.log(`\nGroup already migrated.`);
-        if (groupUrl) console.log(`Migrated group: ${groupUrl}`);
-        if (historyUrl) console.log(`Group import history: ${historyUrl}`);
+        logger.print();
+        logger.warn(`Conflict detected: ${importResErr}`, LOG_STAGES.import);
+        logger.info(`Tip: specify a new group name using -n, --new-group-slug <slug> and try again.`, LOG_STAGES.import);
+        logger.print();
+        logger.info(`Group already migrated.`, LOG_STAGES.import);
+        if (groupUrl) logger.info(`Group URL: ${groupUrl}`, LOG_STAGES.import);
+        if (historyUrl) logger.info(`Group import history: ${historyUrl}`, LOG_STAGES.import);
         process.exit(0);
       }
 
@@ -521,20 +511,20 @@ async function directTransfer(options) {
   const destination = new GitLabClient(destUrl, options.destToken);
 
   try {
-    console.log(`Fetching source group from ID: ${options.groupId}...`);
+    logger.info(`Fetching source group from ID: ${options.groupId}...`, LOG_STAGES.setup);
     let sourceGroup;
     try {
       sourceGroup = await source.getGroup(options.groupId);
     } catch (err) {
       if (err?.response?.status === 404) {
-        console.error(
+        logger.error(
           `Error: group "${options.groupId}" not found in source region "${options.sourceRegion}".\n` +
           `Tip: -g accepts numeric ID or full group path like "parent/subgroup".`
         );
         return 1;
       }
 
-      console.error(`Error: failed to fetch group "${options.groupId}": ${err?.message || err}`);
+      logger.error(`Error: failed to fetch group "${options.groupId}": ${err?.message || err}`, LOG_STAGES.setup);
       return 1;
     }
 
@@ -548,18 +538,20 @@ async function directTransfer(options) {
         maxProjects: 10000,
       });
     } catch (e) {
-      console.warn(`[WARN] GraphQL listing failed (${e.message}). Falling back to REST safe listing...`);
+      logger.warn(`GraphQL listing failed. Falling back to REST project listing...`, LOG_STAGES.setup);
+      logger.debug(`GraphQL error: ${e.message}`, LOG_STAGES.setup);
       sourceProjects = await source.getGroupProjects(sourceGroup.id);
     }
     
-    console.log(`Found ${sourceProjects.length} projects in source group`);
+    logger.info(`Found ${sourceProjects.length} projects in source group`, LOG_STAGES.setup);
     if (sourceProjects.length > 0) {
-      console.log('Projects to be migrated:');
-      sourceProjects.forEach(p => console.log(p.name_with_namespace || p.nameWithNamespace || p.fullPath));
+      logger.info('Projects to be migrated:', LOG_STAGES.setup);
+      sourceProjects.forEach(p => logger.print(p.name_with_namespace || p.nameWithNamespace || p.fullPath));
     }
 
     if (options.newGroupSlug) {
-      await promptUser(options.newGroupSlug);
+      const ok = await promptUserYesNo(`Your new group slug is "${options.newGroupSlug}". Proceed?`);
+      if (!ok) return 0;
     }
 
     // Generate URL mapping JSON before starting the migration
@@ -588,11 +580,12 @@ async function directTransfer(options) {
     let importRes = null;
 
     try {
+      logger.print();
+      logger.info(`Requesting bulk import request in '${options.destRegion}'...`, LOG_STAGES.request);
       importRes = await destination.bulkImport(requestPayload);
       if (importRes.success) {
         bulkImport = importRes.data;
-        console.log(`Bulk import request succeeded!`);
-        console.log(`Bulk import initiated successfully (ID: ${importRes.data?.id})`);
+        logger.success(`✔ Bulk import initiated successfully (ID: ${importRes.data?.id})`, LOG_STAGES.request);
       } else if (importRes.conflict) {
         await handleBulkImportConflict({
           destination,
@@ -603,11 +596,17 @@ async function directTransfer(options) {
         });
       }
     } catch (error) {
-      console.log(`Bulk import request failed - ${error.message}`);
+      logger.error(`✖ Bulk import request failed - ${error.message}`, LOG_STAGES.request);
       process.exit(0);
     }
+        
+    logger.print();
+    const spinnerOff = process.env.DISABLE_SPINNER === 'true';
+    if (spinnerOff) {
+      logger.info('Waiting for bulk project import to complete...', LOG_STAGES.import);
+      logger.info('This may take time depending on the number and size of projects.', LOG_STAGES.import);
+    }
 
-    console.log('\nPolling bulk import status (adaptive: 1m→2m→3m→4m→5m, max 60 checks)...');
     const MAX_ATTEMPTS = 60;
     const POLLS_PER_STEP = 5;
     const MIN_INTERVAL_MIN = 1;
@@ -615,119 +614,146 @@ async function directTransfer(options) {
 
     let importStatus = 'created';
     let attempts = 0;
+    let entitiesAll = [];
 
-    while (!['finished', 'failed', 'timeout'].includes(importStatus) && attempts < MAX_ATTEMPTS) {
-      if (attempts > 0) {
-        const step = Math.floor(attempts / POLLS_PER_STEP);
-        const waitMin = Math.min(MIN_INTERVAL_MIN + step, MAX_INTERVAL_MIN);
+    const emit = (msg) => {
+      if (spinnerOff) logger.info(msg, LOG_STAGES.import);
+      else logger.updateSpinnerMsg(msg);
+    };
 
-        console.log(`Waiting ${waitMin} minute before next status check...`);
-        await new Promise(resolve => setTimeout(resolve, waitMin * 60000));
-      }
-      try {
+    const waitStep = async () => {
+      const step = Math.floor(attempts / POLLS_PER_STEP);
+      const waitMin = Math.min(MIN_INTERVAL_MIN + step, MAX_INTERVAL_MIN);
+
+      if (options.verbose) emit(`Waiting ${waitMin} minute before next status check...`);
+      await new Promise(r => setTimeout(r, waitMin * 60000));
+    };
+
+    const pollBulkImport = async () => {
+      while (!['finished', 'failed', 'timeout'].includes(importStatus) && attempts < MAX_ATTEMPTS) {
+        if (attempts > 0) await waitStep();
+
         const importDetails = await destination.getBulkImport(bulkImport.id);
         importStatus = importDetails.status;
+
         let progressLine;
         try {
-          const entitiesAll = await destination.getBulkImportEntitiesAll(bulkImport.id);
-          const summary = summarizeBulkImportProgress(entitiesAll);
-          progressLine = formatBulkImportProgressLine(importStatus, summary);
+          entitiesAll = await destination.getBulkImportEntitiesAll(bulkImport.id);
+          progressLine = formatBulkImportProgressLine(importStatus, summarizeBulkImportProgress(entitiesAll));
         } catch {
           progressLine = `Import status: ${importStatus} | Progress: (unable to fetch entity details)`;
         }
 
-        console.log(`[${new Date().toLocaleTimeString()}] ${progressLine}`);
+        emit(progressLine);
 
-        if (importStatus === 'finished') {
-          console.log('Bulk import completed successfully!');
-          break;
-        } else if (importStatus === 'failed') {
-          console.log('Bulk import failed!');
-          break;
-        }
-      } catch (e) {
-        console.error(`Error checking import status: ${e.message}`);
-        if (e.response?.status === 404) {
-          throw new Error('Bulk import not found - it may have been deleted');
-        }
+        if (importStatus === 'finished') return { importStatus, entitiesAll };
+        if (importStatus === 'failed') throw new Error('GitLab bulk import failed');
+
+        attempts++;
       }
-      attempts++;
-    }
 
-    if (attempts >= MAX_ATTEMPTS) {
-      const historyUrl = buildGroupImportHistoryUrl(destUrl);
-
-      console.error('\nThe CLI has stopped polling for the GitLab bulk import.');
-      console.error('The migration itself may still be running inside GitLab — the CLI only waits for a limited time.');
-      console.error(`Last reported status for bulk import ${bulkImport.id}: ${importStatus}`);
-
-      if (historyUrl) {
-        console.error('\nYou can continue monitoring this migration in the GitLab UI.');
-        console.error(`Group import history: ${historyUrl}`);
-      } else {
-        console.error('\nYou can continue monitoring this migration from the Group import history page in the GitLab UI.');
+      if (attempts >= MAX_ATTEMPTS) {
+        const err = new Error('POLLING_TIMEOUT');
+        err.code = 'POLLING_TIMEOUT';
+        err.importStatus = importStatus;
+        throw err;
       }
-      process.exit(0);
-    }
 
-    const entities = await destination.getBulkImportEntities(bulkImport.id);
-    const finishedEntities = entities.filter(e => e.status === 'finished');
-    const failedEntities = entities.filter(e => e.status === 'failed');
-
-    const getGroupPlaceholderCsvData = await destination.getGroupPlaceholderCsv(destinationGroupPath);
-    const groupPlaceholders = Papa.parse(getGroupPlaceholderCsvData, { header: true, skipEmptyLines: true }).data;
-    console.log(JSON.stringify(groupPlaceholders));
-
-    for (let i = 0; i < groupPlaceholders.length; i++) {
-      console.log(JSON.stringify(groupPlaceholders[i]));
-      const { username: destinationUsername } = await destination.syncUser({
-        sourceRegion: options.sourceRegion,
-        destRegion: options.destRegion,
-        groupId: destinationGroupPath,
-        userId: groupPlaceholders[i]['Source user identifier'],
-      });
-      console.log(destinationUsername);
-      groupPlaceholders[i]['GitLab username'] = destinationUsername;
-    }
-
-    const csvForm = Papa.unparse(groupPlaceholders);
-    fs.writeFileSync('groupPlaceholders.csv', csvForm, 'utf8');
-    const csvConfig = {
-      file : fs.createReadStream('groupPlaceholders.csv')
+      return { importStatus, entitiesAll };
     };
 
-    const reassignGroupPlaceholderData = await destination.reassignGroupPlaceholder(destinationGroupPath, csvConfig);
-    console.log(reassignGroupPlaceholderData);
+    let pollResult;
+    try {
+      pollResult = await logger.withSpinner(
+        pollBulkImport,
+        'Waiting for bulk project import to complete... (may take some time)',
+        'Bulk import completed successfully!',
+        LOG_STAGES.import
+      );
 
-    if (importStatus === 'finished' && finishedEntities.length > 0) {
-      console.log(`\nGroup migration completed successfully!`);
-      console.log(`Migration Results:`);
-      console.log(`Successfully migrated: ${finishedEntities.length} entities`);
-      console.log(`Failed: ${failedEntities.length} entities`);
+      if (spinnerOff) logger.success('Bulk import completed successfully!', LOG_STAGES.import);
+      importStatus = pollResult.importStatus;
+      entitiesAll = pollResult.entitiesAll?.length ? pollResult.entitiesAll : entitiesAll;
+    } catch (e) {
+      logger.failSpinner('✖ Bulk import did not complete');
+      logger.resetSpinner();
 
-      if (failedEntities.length > 0) {
-        console.log(`\nFailed entities:\n`);
-        failedEntities.forEach(e => {
-          console.log(`${e.source_type}: ${e.source_full_path} (${e.status})`);
+      if (e?.code === 'POLLING_TIMEOUT') {
+        const historyUrl = buildGroupImportHistoryUrl(destUrl);
+
+        logger.print();
+        logger.error('The CLI has stopped polling for the GitLab bulk import.', LOG_STAGES.import);
+        logger.error('The migration itself may still be running inside GitLab — the CLI only waits for a limited time.', LOG_STAGES.import);
+        logger.error(`Last reported status for bulk import ${bulkImport.id}: ${e.importStatus}`, LOG_STAGES.import);
+
+        logger.print();
+        if (historyUrl) {
+          logger.info('You can continue monitoring this migration in the GitLab UI:', LOG_STAGES.import);
+          logger.info(`Group import history: ${historyUrl}`, LOG_STAGES.import);
+        } else {
+          logger.info('You can continue monitoring this migration from the Group import history page in the GitLab UI.', LOG_STAGES.import);
+        }
+        process.exit(0);
+      }
+
+      throw e;
+    }
+
+    const summary = summarizeBulkImportProgress(entitiesAll);
+
+    if (importStatus === 'finished' && summary.entityFinished > 0) {
+      const newGroupUrl = buildGroupUrl(destUrl, `/groups/${destinationGroupPath}`);
+
+      logger.print();
+      logger.success('✔ Project group copy completed successfully.', LOG_STAGES.import);
+      logger.info('Summary:', LOG_STAGES.import);
+      logger.info(`${sourceProjects.length} projects copied successfully`, LOG_STAGES.import);
+      logger.info(`${summary.entityFinished} entities copied successfully`, LOG_STAGES.import);
+      logger.info(`${summary.entityFailed} entities failed to copy`, LOG_STAGES.import);
+      if (newGroupUrl) logger.info(`New group URL: ${newGroupUrl}`, LOG_STAGES.import);
+
+      const getGroupPlaceholderCsvData = await destination.getGroupPlaceholderCsv(destinationGroupPath);
+      const groupPlaceholders = Papa.parse(getGroupPlaceholderCsvData, { header: true, skipEmptyLines: true }).data;
+      console.log(JSON.stringify(groupPlaceholders));
+
+      for (let i = 0; i < groupPlaceholders.length; i++) {
+        console.log(JSON.stringify(groupPlaceholders[i]));
+        const { username: destinationUsername } = await destination.syncUser({
+          sourceRegion: options.sourceRegion,
+          destRegion: options.destRegion,
+          groupId: destinationGroupPath,
+          userId: groupPlaceholders[i]['Source user identifier'],
+        });
+        console.log(destinationUsername);
+        groupPlaceholders[i]['GitLab username'] = destinationUsername;
+      }
+
+      const csvForm = Papa.unparse(groupPlaceholders);
+      fs.writeFileSync('groupPlaceholders.csv', csvForm, 'utf8');
+      const csvConfig = {
+        file : fs.createReadStream('groupPlaceholders.csv')
+      };
+
+      const reassignGroupPlaceholderData = await destination.reassignGroupPlaceholder(destinationGroupPath, csvConfig);
+      console.log(reassignGroupPlaceholderData);
+
+      // show failed list only in verbose (or if failures exist)
+      if (summary.entityFailed > 0) {
+        logger.print();
+        logger.warn('Failed entities:', LOG_STAGES.import);
+        entitiesAll.filter(e => e.status === 'failed').forEach(e => {
+          logger.print(`- ${e.source_type}: ${e.source_full_path} (${e.status})`);
         });
       }
-      const migratedGroupUrl = buildGroupUrl(destUrl, `/groups/${destinationGroupPath}`);
-      if (migratedGroupUrl) console.log(`\nMigrated group: ${migratedGroupUrl}`);
-
       return 0;
     } else {
-      console.error('\nBulk import failed!');
-      if (failedEntities.length > 0) {
-        console.error('Failed entities:');
-        failedEntities.forEach(e => {
-          console.error(`${e.source_type}: ${e.source_full_path} (${e.status})`);
-        });
-      }
+      logger.print();
+      logger.error('✖ Bulk import failed!', LOG_STAGES.import);
       throw new Error('GitLab bulk import failed');
     }
 
   } catch (error) {
-    console.error(`Group migration failed: ${error.message}`);
+    logger.error(`Project group copy failed: ${error.message}`, LOG_STAGES.import);
     throw error;
   }
 }
@@ -741,9 +767,11 @@ const command = new Command('copy-project-group')
   .requiredOption('--dt, --dest-token <token>', 'A Git Repos and Issue Tracking personal access token from the target region. The api scope is required on the token.')
   .requiredOption('-g, --group-id <id>', 'The id of the group to copy from the source region (e.g. "1796019"), or the group name (e.g. "mygroup") for top-level groups. For sub-groups, a path is also allowed, e.g. "mygroup/subgroup"')
   .option('-n, --new-group-slug <slug>', '(Optional) Destination group URL slug (single path segment, e.g. "mygroup-copy"). Must be unique. Group display name remains the same as source.')
+  .option('-v, --verbose', 'Enable verbose output (debug logs + wait details)')
   .showHelpAfterError()
   .hook('preAction', cmd => cmd.showHelpAfterError(false)) // only show help during validation
   .action(async (options) => {
+    logger.setVerbosity(options.verbose ? 2 : 1);
     await directTransfer(options);
   });
 
