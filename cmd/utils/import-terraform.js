@@ -15,8 +15,11 @@ import { jsonToTf } from 'json-to-tf';
 import { getPipelineData, getToolchainTools } from './requests.js';
 import { runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
 import { getRandChars, isSecretReference, normalizeName } from './utils.js';
+import { logger } from './logger.js';
 
 import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
+
+const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true'; // when true, log extra errors for debugging
 
 export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, dir, isCompact, verbosity) {
     // STEP 1/2: set up terraform file with import blocks
@@ -157,7 +160,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     // STEP 2/2: run terraform import and post-processing
     setTerraformEnv(apiKey, verbosity);
-    await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch(() => { }); // temp fix for errors due to bugs in the provider
+    await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch((err) => { DEBUG_MODE && logger.dump(`\n[DEBUG_MODE=true] Draft errors: ${err}`) }); // temp fix for errors before post-processing
 
     const generatedFile = fs.readFileSync(`${dir}/generated/draft.tf`);
     const generatedFileJson = await tfToJson('draft.tf', generatedFile.toString());
