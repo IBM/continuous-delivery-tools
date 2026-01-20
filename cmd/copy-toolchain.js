@@ -85,7 +85,7 @@ async function main(options) {
 	const verbosity = options.quiet ? 0 : options.verbose ? 2 : 1;
 
 	logger.setVerbosity(verbosity);
-	if (LOG_DUMP) logger.createLogStream(`${LOGS_DIR}/copy-toolchain-${new Date().getTime()}.log`);
+	if (LOG_DUMP) logger.createLogStream(`${LOGS_DIR}/copy-toolchain-${TIME_SUFFIX}.log`);
 	logger.dump(`Options: ${JSON.stringify(options)}\n`);
 
 	let bearer;
