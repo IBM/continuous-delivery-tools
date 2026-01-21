@@ -85,7 +85,8 @@ Options:
   -d, --dest-region <region>    The destination region to copy the projects to (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
   --st, --source-token <token>  A Git Repos and Issue Tracking personal access token from the source region. The api scope is required on the token.
   --dt, --dest-token <token>    A Git Repos and Issue Tracking personal access token from the target region. The api scope is required on the token.
-  -g, --group-id <id>           The id of the group to copy from the source region (e.g. "1796019"), or the group name (e.g. "mygroup") for top-level groups. For sub-groups, a path is also allowed, e.g. "mygroup/subgroup"
+  -g, --group-id <id>           The id of the group to copy from the source region (e.g. "1796019"), or the group name (e.g. "mygroup") for top-level groups. For sub-groups, a path
+                                is also allowed, e.g. "mygroup/subgroup"
   -n, --new-group-slug <slug>   (Optional) Destination group URL slug (single path segment, e.g. "mygroup-copy"). Must be unique. Group display name remains the same as source.
   -v, --verbose                 Enable verbose output (debug logs + wait details)
   -h, --help                    display help for command
@@ -199,7 +200,7 @@ The `copy-toolchain` command copies a toolchain within an IBM Cloud account. How
 ## export-secrets
 
 ### Overview
-The `export-secrets` command copies secrets stored directly in your toolchain or Tekton pipeline into [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager), and then updates the toolchain and pipeline to reference the secrets in Secrets Manager. The `copy-toolchain` command does not copy secrets stored directly in the toolchain or its Tekton pipeline environment properties or trigger properties, however [secret references](https://cloud.ibm.com/docs/ContinuousDelivery?topic=ContinuousDelivery-cd_data_security#cd_secrets_references) to secrets in a secret store such as [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager) or [Key Protect](https://cloud.ibm.com/docs/key-protect) can be copied. The `export-secrets` command is useful for moving out your secrets before copying a toolchain. You can also use it to check whether a toolchain or its Tekton pipeline(s) contain any stored secrets. Storing secrets in a proper secret store like Secrets Manager is a recommended practice for added security.
+The `export-secrets` command copies secrets stored directly in your toolchain or Tekton pipeline into [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager), and then updates the toolchain and pipeline to reference the secrets in Secrets Manager. The `copy-toolchain` command does not copy secrets stored directly in the toolchain or its Tekton pipeline environment properties or trigger properties, however [secret references](https://cloud.ibm.com/docs/ContinuousDelivery?topic=ContinuousDelivery-cd_data_security#cd_secrets_references) to secrets in a secret store such as [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager) or [Key Protect](https://cloud.ibm.com/docs/key-protect) can be copied. The `export-secrets` command is useful for moving your secrets out before copying a toolchain. You can also use it to check whether a toolchain or its Tekton pipeline(s) contain any stored secrets. Storing secrets in a proper secret store like Secrets Manager is a recommended practice for added security.
 
 ### Limitations
 1. The Secrets Manager instance must be in the account that owns the API key you'll be using.
