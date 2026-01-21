@@ -35,19 +35,19 @@ brew install hashicorp/tap/terraform
 The tools are provided as an [npx](https://docs.npmjs.com/cli/commands/npx) command. [npx](https://docs.npmjs.com/cli/commands/npx) (Node Package Execute) is a utility provided with [Node.js](https://nodejs.org/) which automatically downloads a module and its dependencies, and runs it. To see the available commands, run `npx @ibm-cloud/cd-tools` on your command line.
 
 ```shell-session
-$ npx @ibm-cloud/cd-tools
+$ npx @ibm-cloud/cd-tools -h
 Usage: @ibm-cloud/cd-tools [options] [command]
 
-Tools for migrating Toolchains, Delivery Pipelines, and Git Repos and Issue Tracking projects.
+Tools and utilities for the IBM Cloud Continuous Delivery service and resources.
 
 Options:
   -V, --version                 output the version number
   -h, --help                    display help for command
 
 Commands:
-  copy-project-group [options]  Bulk migrate GitLab group projects
-  copy-toolchain [options]      Copies a toolchain, including tool integrations and Tekton pipelines, to another region or resource group
-  export-secrets [options]      Checks if you have any stored secrets in your toolchain or pipelines, and exports them to Secrets Manager
+  copy-project-group [options]  Copies all Git Repos and Issue Tracking projects in a group to another region.
+  copy-toolchain [options]      Copies a toolchain, including tool integrations and Tekton pipelines, to another region or resource group.
+  export-secrets [options]      Exports Toolchain stored secrets to a Secrets Manager instance
   help [command]                display help for command
 ```
 
@@ -85,9 +85,9 @@ Options:
   -d, --dest-region <region>    The destination region to copy the projects to (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
   --st, --source-token <token>  A Git Repos and Issue Tracking personal access token from the source region. The api scope is required on the token.
   --dt, --dest-token <token>    A Git Repos and Issue Tracking personal access token from the target region. The api scope is required on the token.
-  -g, --group-id <id>           The id of the group to copy from the source region (e.g. "1796019"), or the group name (e.g. "mygroup") for top-level groups. For sub-groups, a path
-                                is also allowed, e.g. "mygroup/subgroup"
+  -g, --group-id <id>           The id of the group to copy from the source region (e.g. "1796019"), or the group name (e.g. "mygroup") for top-level groups. For sub-groups, a path is also allowed, e.g. "mygroup/subgroup"
   -n, --new-group-slug <slug>   (Optional) Destination group URL slug (single path segment, e.g. "mygroup-copy"). Must be unique. Group display name remains the same as source.
+  -v, --verbose                 Enable verbose output (debug logs + wait details)
   -h, --help                    display help for command
 ```
 
@@ -190,11 +190,45 @@ The command will output a collection of `.tf` files in the `terraform` directory
 
 ### Copying toolchains to a different account
 
-The `copy-toolchain` command copies a toolchain within an IBM Cloud account. However it is possible to copy a toolchain to a different account with a few extra steps. Note that any tool integrations that access services in the source account, such as [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager?topic=secrets-manager-getting-started), [Event Notifications](https://cloud.ibm.com/docs/event-notifications?topic=event-notifications-getting-started), etc. are not supported for cross-account copying.
+The `copy-toolchain` command copies a toolchain within an IBM Cloud account. However it is possible to copy a toolchain to a different account with a few extra steps. Note that any tool integrations that access services in the source account, such as [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager), [Event Notifications](https://cloud.ibm.com/docs/event-notifications), etc. are not supported for cross-account copying.
 1. Run the `copy-toolchain` command with the `-D, --dry-run` option to first generate the Terraform (.tf) files to a directory (See [Getting the Terraform code for a toolchain](#getting-the-terraform-code-for-a-toolchain)).
 2. Edit the `cd_toolchain.tf` file, replacing the `resource_group_id` with a valid resource group id in the target account. You can find the resource group id in the IBM Cloud console under [Manage > Account > Resource groups](https://cloud.ibm.com/account/resource-groups).
 3. Switch to the directory containing the Terraform files, and run `terraform init`, then `terraform apply`.
 4. When prompted for the API key, provide an API key for the target account you wish to copy the toolchain to.
+
+## export-secrets
+
+### Overview
+The `export-secrets` command copies secrets stored directly in your toolchain or Tekton pipeline into [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager), and then updates the toolchain and pipeline to reference the secrets in Secrets Manager. The `copy-toolchain` command does not copy secrets stored directly in the toolchain or its Tekton pipeline environment properties or trigger properties, however [secret references](https://cloud.ibm.com/docs/ContinuousDelivery?topic=ContinuousDelivery-cd_data_security#cd_secrets_references) to secrets in a secret store such as [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager) or [Key Protect](https://cloud.ibm.com/docs/key-protect) can be copied. The `export-secrets` command is useful for moving out your secrets before copying a toolchain. You can also use it to check whether a toolchain or its Tekton pipeline(s) contain any stored secrets. Storing secrets in a proper secret store like Secrets Manager is a recommended practice for added security.
+
+### Limitations
+1. The Secrets Manager instance must be in the account that owns the API key you'll be using.
+2. Only [arbitrary type](https://cloud.ibm.com/docs/secrets-manager?topic=secrets-manager-arbitrary-secrets) secrets are supported.
+3. If you opt to create a Secrets Manager tool integration while running the command, it will not automatically create an IAM authorization policy to allow the toolchain to read secrets from the Secrets Manager instance. If the tool integration in the toolchain shows an error status due to the missing authorization policy, you can click the **Create Authorization** button to create a default one.
+
+### Prerequisites
+- You must first provision a [Secrets Manager](https://cloud.ibm.com/docs/secrets-manager?topic=secrets-manager-create-instance) instance before running the command.
+- The API key you use must be from the same account as the Secrets Manager instance.
+- The API key must have IAM permission to read the toolchain and create secrets in the selected Secrets Manager instance.
+
+### Recommendations
+- After running the command, open the toolchain and verify that the tool integration shows a healthy status. If it shows an error status due to a missing authorization policy, you can reconfigure the tool integration and click the **Create Authorization** button to create a default one.
+- You can run the command as many times as you like until all secrets are exported.
+
+### Usage
+```shell-session
+$ npx @ibm-cloud/cd-tools export-secrets -h
+Usage: @ibm-cloud/cd-tools export-secrets [options]
+
+Exports Toolchain stored secrets to a Secrets Manager instance
+
+Options:
+  -c, --toolchain-crn <crn>  The CRN of the toolchain to check
+  -a, --apikey <api_key>     API key used to authenticate. Must have IAM permission to read toolchains and create secrets in Secrets Manager
+  --check                    (Optional) Checks and lists any stored secrets in your toolchain
+  -v, --verbose              (Optional) Increase log output
+  -h, --help                 display help for command
+```
 
 ## Test
 All test setup and usage instructions are documented in [test/README.md](./test/README.md).
