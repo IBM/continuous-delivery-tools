@@ -502,6 +502,16 @@ async function getWithRetry(client, path, params = {}, { retries = 3, retryDelay
     throw lastError;
 }
 
+function shouldFailover(err) {
+  if (!err?.response) return true;
+  const status = err.response.status;
+  if (status >= 500) return true;
+  if (status === 404) return true;
+  if (status === 401) return true;
+
+  return false;
+}
+
 export {
     getBearerToken,
     getAccountId,
@@ -521,5 +531,6 @@ export {
     createTool,
     getSmInstances,
     migrateToolchainSecrets,
-    getWithRetry
+    getWithRetry,
+    shouldFailover
 }

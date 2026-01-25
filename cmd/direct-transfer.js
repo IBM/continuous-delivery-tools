@@ -10,8 +10,8 @@
 import { Command } from 'commander';
 import axios from 'axios';
 import { writeFile } from 'fs/promises';
-import { COPY_PROJECT_GROUP_DESC, SOURCE_REGIONS } from '../config.js';
-import { getWithRetry } from './utils/requests.js';
+import { COPY_PROJECT_GROUP_DESC, SOURCE_REGIONS, BROKER_REGIONS } from '../config.js';
+import { getWithRetry, shouldFailover } from './utils/requests.js';
 import Papa from 'papaparse';
 import fs from 'fs';
 import { logger, LOG_STAGES } from './utils/logger.js';
@@ -176,8 +176,41 @@ class GitLabClient {
   }
 
   async syncUser(syncData) {
-    const response = await this.client.post(`https://otc-github-consolidated-broker.${syncData.destRegion}.devops.cloud.ibm.com/git-user-sync`, syncData);
-    return response.data;
+    const preferred = syncData?.destRegion;
+    const candidates = [
+      ...(preferred ? [preferred] : []),
+      ...BROKER_REGIONS,
+    ];
+
+    const seen = new Set();
+    const brokerRegions = candidates.filter(r => (seen.has(r) ? false : (seen.add(r), true)));
+
+    let lastErr;
+
+    for (const brokerRegion of brokerRegions) {
+      const url = `https://otc-github-consolidated-broker.${brokerRegion}.devops.cloud.ibm.com/git-user-sync`;
+      try {
+        const response = await this.client.post(url, syncData);
+        return response.data;
+      } catch (err) {
+        lastErr = err;
+
+        if (!shouldFailover(err)) throw err;
+
+        continue;
+      }
+    }
+
+    const status = lastErr?.response?.status;
+    const msg =
+      lastErr?.response?.data?.message ||
+      lastErr?.message ||
+      'Unknown error';
+
+    throw new Error(
+      `git-user-sync failed via all brokers (destRegion=${syncData?.destRegion}). ` +
+      `Last error: ${status || 'NO_RESPONSE'} - ${msg}`
+    );
   }
 
   async createBulkImport(importData) {
@@ -504,6 +537,160 @@ async function handleBulkImportConflict({ destination, destUrl, sourceGroupFullP
   }
 }
 
+async function handlePlaceholderReassignments({ destination, options, destinationGroupPath }) {
+  const SRC_COL = 'Source user identifier';
+  const DEST_COL = 'GitLab username';
+
+  logger.print();
+  logger.info('Checking for placeholder users to reassign...', LOG_STAGES.info);
+
+  let destGroup;
+  try {
+    destGroup = await destination.getGroupByFullPath(destinationGroupPath);
+  } catch (e) {
+    logger.warn(
+      `Unable to look up destination group "${destinationGroupPath}" to process placeholder reassignment. Skipping.`,
+      LOG_STAGES.import
+    );
+    logger.debug(`Group lookup error: ${e?.message || e}`, LOG_STAGES.import);
+    return;
+  }
+
+  const destGroupId = destGroup?.id;
+  if (!destGroupId) {
+    logger.warn('Destination group ID not available. Skipping placeholder reassignment.', LOG_STAGES.import);
+    return;
+  }
+
+  const csvText = await logger.withSpinner(
+    () => destination.getGroupPlaceholderCsv(destGroupId),
+    'Fetching placeholder reassignment data...',
+    'Fetched placeholder reassignment data.',
+    LOG_STAGES.request
+  );
+
+  if (!csvText) {
+    logger.info('No placeholder reassignment support detected (or no placeholders). Skipping.', LOG_STAGES.import);
+    return;
+  }
+
+  const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+  const rows = Array.isArray(parsed?.data) ? parsed.data.filter(Boolean) : [];
+
+  if (parsed?.errors?.length) {
+    logger.warn(`Placeholder CSV parse warnings: ${parsed.errors.length}`, LOG_STAGES.import);
+    if (options.verbose) {
+      parsed.errors.slice(0, 5).forEach(e => logger.log(`CSV parse warning: ${JSON.stringify(e)}`, LOG_STAGES.import, true));
+    }
+  }
+
+  if (!rows.length) {
+    logger.info('No placeholder users found. Skipping reassignment.', LOG_STAGES.import);
+    return;
+  }
+
+  if (!(SRC_COL in rows[0])) {
+    logger.warn(`Placeholder CSV missing expected column "${SRC_COL}". Skipping reassignment.`, LOG_STAGES.import);
+    if (options.verbose) logger.debug(`CSV headers: ${Object.keys(rows[0] || {}).join(', ')}`, LOG_STAGES.import);
+    return;
+  }
+
+  logger.info(`Found ${rows.length} placeholder record(s). Resolving users...`, LOG_STAGES.info);
+
+  const ids = [...new Set(rows.map(r => (r?.[SRC_COL] || '').trim()).filter(Boolean))];
+
+  if (!ids.length) {
+    logger.info('No valid placeholder user identifiers found. Skipping reassignment.', LOG_STAGES.import);
+    return;
+  }
+
+  const idToUsername = new Map();
+  const failedIds = [];
+
+  const resolveUsers = async () => {
+    for (let i = 0; i < ids.length; i++) {
+      const userId = ids[i];
+      logger.updateSpinnerMsg(`Resolving placeholder users (${i + 1}/${ids.length})...`);
+
+      try {
+        const resp = await destination.syncUser({
+          sourceRegion: options.sourceRegion,
+          destRegion: options.destRegion,
+          groupId: destGroupId,
+          userId,
+        });
+
+        const username = resp?.username;
+        if (username) {
+          idToUsername.set(userId, username);
+        } else {
+          failedIds.push(userId);
+          if (options.verbose) logger.warn(`User sync returned no username for userId=${userId}`, LOG_STAGES.import);
+        }
+      } catch (e) {
+        failedIds.push(userId);
+        logger.warn(`Failed to sync userId=${userId}: ${e?.message || e}`, LOG_STAGES.request);
+      }
+    }
+    return { resolved: idToUsername.size, total: ids.length };
+  };
+
+  const resolvedSummary = await logger.withSpinner(
+    resolveUsers,
+    `Resolving placeholder users (0/${ids.length})...`,
+    `Resolved placeholder users.`,
+    LOG_STAGES.request
+  );
+
+  logger.info(`Resolved ${resolvedSummary.resolved}/${resolvedSummary.total} user(s).`, LOG_STAGES.info);
+
+  if (idToUsername.size === 0) {
+    logger.warn('No users could be resolved. Skipping placeholder reassignment upload.', LOG_STAGES.info);
+    return;
+  }
+
+  let updatedCount = 0;
+  for (const r of rows) {
+    const id = (r?.[SRC_COL] || '').trim();
+    const username = idToUsername.get(id);
+    if (username) {
+      r[DEST_COL] = username;
+      updatedCount++;
+    }
+  }
+
+  logger.info(`Prepared reassignment CSV for ${updatedCount}/${rows.length} record(s).`, LOG_STAGES.setup);
+
+  const outPath = `groupPlaceholders.csv`;
+  const csvOut = Papa.unparse(rows);
+
+  await fs.promises.writeFile(outPath, csvOut, 'utf8');
+  logger.info(`Wrote placeholder reassignment CSV: ${outPath}`, LOG_STAGES.setup);
+
+  const csvConfig = { file: fs.createReadStream(outPath) };
+
+  const reassignRes = await logger.withSpinner(
+    () => destination.reassignGroupPlaceholder(destGroupId, csvConfig),
+    'Submitting placeholder reassignment...',
+    'Placeholder reassignment submitted.',
+    LOG_STAGES.request
+  );
+
+  if (!reassignRes) {
+    logger.warn('Placeholder reassignment endpoint not supported (or returned 404). Skipping.', LOG_STAGES.import);
+    return;
+  }
+
+  if (options.verbose) logger.debug(`Placeholder reassignment response: ${JSON.stringify(reassignRes)}`, LOG_STAGES.import);
+
+  if (failedIds.length) {
+    logger.warn(`Some users could not be resolved: ${failedIds.length}/${ids.length}`, LOG_STAGES.import);
+    if (options.verbose) failedIds.slice(0, 20).forEach(id => logger.log(`Unresolved userId: ${id}`, LOG_STAGES.import, true));
+  } else {
+    logger.success('✔ Placeholder reassignment completed.', LOG_STAGES.info);
+  }
+}
+
 async function directTransfer(options) {
   const sourceUrl = validateAndConvertRegion(options.sourceRegion);
   const destUrl = validateAndConvertRegion(options.destRegion);
@@ -712,30 +899,7 @@ async function directTransfer(options) {
       logger.info(`${summary.entityFailed} entities failed to copy`, LOG_STAGES.import);
       if (newGroupUrl) logger.info(`New group URL: ${newGroupUrl}`, LOG_STAGES.import);
 
-      const getGroupPlaceholderCsvData = await destination.getGroupPlaceholderCsv(destinationGroupPath);
-      const groupPlaceholders = Papa.parse(getGroupPlaceholderCsvData, { header: true, skipEmptyLines: true }).data;
-      console.log(JSON.stringify(groupPlaceholders));
-
-      for (let i = 0; i < groupPlaceholders.length; i++) {
-        console.log(JSON.stringify(groupPlaceholders[i]));
-        const { username: destinationUsername } = await destination.syncUser({
-          sourceRegion: options.sourceRegion,
-          destRegion: options.destRegion,
-          groupId: destinationGroupPath,
-          userId: groupPlaceholders[i]['Source user identifier'],
-        });
-        console.log(destinationUsername);
-        groupPlaceholders[i]['GitLab username'] = destinationUsername;
-      }
-
-      const csvForm = Papa.unparse(groupPlaceholders);
-      fs.writeFileSync('groupPlaceholders.csv', csvForm, 'utf8');
-      const csvConfig = {
-        file : fs.createReadStream('groupPlaceholders.csv')
-      };
-
-      const reassignGroupPlaceholderData = await destination.reassignGroupPlaceholder(destinationGroupPath, csvConfig);
-      console.log(reassignGroupPlaceholderData);
+      await handlePlaceholderReassignments({destination, options, destinationGroupPath});
 
       // show failed list only in verbose (or if failures exist)
       if (summary.entityFailed > 0) {
