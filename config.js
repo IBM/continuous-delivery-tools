@@ -55,6 +55,20 @@ const TARGET_REGIONS = [
 	'us-south'
 ];
 
+const BROKER_REGIONS = [
+  	'au-syd',
+	'br-sao',
+	'ca-mon',
+	'ca-tor',
+	'eu-de',
+	'eu-es',
+	'eu-gb',
+	'jp-osa',
+	'jp-tok',
+	'us-east',
+	'us-south'
+];
+
 const TERRAFORM_REQUIRED_VERSION = '1.13.3';
 
 // see https://docs.gitlab.com/user/reserved_names/
@@ -232,6 +246,7 @@ export {
 	DOCS_URL,
 	SOURCE_REGIONS,
 	TARGET_REGIONS,
+	BROKER_REGIONS,
 	TERRAFORM_REQUIRED_VERSION,
 	RESERVED_GRIT_PROJECT_NAMES,
 	RESERVED_GRIT_GROUP_NAMES,
