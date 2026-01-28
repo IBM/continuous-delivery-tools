@@ -8,3 +8,4 @@ test/.test-logs
 test/config/local.json
 env.sh
 grit-url-map.json
+groupPlaceholders.csv
