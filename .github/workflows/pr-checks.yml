@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   pr-checks:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       pull-requests: write # to comment on released pull requests
     steps:
