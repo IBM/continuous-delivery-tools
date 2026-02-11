@@ -270,21 +270,34 @@ async function main(options) {
 		}
 
 		await setupTerraformFiles({
-			token: bearer,
-			srcRegion: sourceRegion,
-			targetRegion: targetRegion,
-			targetTag: targetTag,
-			targetToolchainName: targetToolchainName,
-			targetRgId: targetRgId,
-			disableTriggers: disableTriggers,
-			isCompact: isCompact,
-			outputDir: outputDir,
-			tempDir: TEMP_DIR,
-			moreTfResources: moreTfResources,
-			gritMapping: gritMapping,
-			skipUserConfirmation: skipUserConfirmation,
-			includeS2S: includeS2S,
-			timeSuffix: TIME_SUFFIX
+			auth: {
+				token: bearer
+			},
+			source: {
+				srcRegion: sourceRegion,
+				srcToolchainId: sourceToolchainId
+			},
+			target: {
+				targetRegion: targetRegion,
+				targetRgId: targetRgId,
+				targetToolchainName: targetToolchainName,
+				targetTag: targetTag
+			},
+			options: {
+				disableTriggers: disableTriggers,
+				includeS2S: includeS2S,
+				isCompact: isCompact,
+				skipUserConfirmation: skipUserConfirmation
+			},
+			paths: {
+				tempDir: TEMP_DIR,
+				outputDir: outputDir
+			},
+			additional: {
+				gritMapping: gritMapping,
+				moreTfResources: moreTfResources,
+				timeSuffix: TIME_SUFFIX
+			}
 		});
 	} catch (err) {
 		if (err.message && err.stack) {
