@@ -68,7 +68,16 @@ async function initProviderFile(targetRegion, dir) {
     return writeFilePromise(`${dir}/provider.tf`, jsonToTf(newProviderTfStr));
 }
 
-async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, targetToolchainName, targetRgId, disableTriggers, isCompact, outputDir, tempDir, moreTfResources, gritMapping, skipUserConfirmation, includeS2S, timeSuffix }) {
+async function setupTerraformFiles(config) {
+    const {
+        auth: { token },
+        source: { srcRegion, srcToolchainId },
+        target: { targetRegion, targetRgId, targetToolchainName, targetTag },
+        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation },
+        paths: { tempDir, outputDir },
+        additional: { gritMapping, moreTfResources, timeSuffix }
+    } = config;
+
     const promises = [];
 
     const writeProviderPromise = await initProviderFile(targetRegion, outputDir);
@@ -230,6 +239,19 @@ async function setupTerraformFiles({ token, srcRegion, targetRegion, targetTag, 
             ];
             if (targetToolchainName) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] = targetToolchainName;
             if (targetRgId) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['resource_group_id'] = targetRgId;
+
+            // set new description
+            const oldDesc = newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'];
+            let newDesc = `Copied from https://cloud.ibm.com/devops/toolchains/${srcToolchainId}?env_id=ibm:yp:${srcRegion}` +
+                (oldDesc && oldDesc != newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] ?
+                    `; Original description: ${oldDesc}`
+                    : '')
+            // if greater than 500 chars, truncate to fit within 500 chars and add a marker`
+            if (newDesc.length > 500) {
+                const marker = ' (truncated)';
+                newDesc = newDesc.substring(0, 500 - marker.length) + marker;
+            }
+            newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'] = newDesc;
         }
 
         if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_trigger') {
