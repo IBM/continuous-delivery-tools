@@ -13,6 +13,8 @@ import axiosRetry from 'axios-retry';
 import mocks from '../../test/data/mocks.js'
 import { logger, LOG_STAGES } from './logger.js';
 
+import packageJson from '../../package.json' with { type: 'json' };
+
 const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
 const IAM_BASE_URL = DEV_MODE ? process.env['IBMCLOUD_IAM_API_ENDPOINT'] : 'https://iam.cloud.ibm.com';
@@ -117,6 +119,7 @@ async function getToolchain(bearer, toolchainId, region) {
             'Accept': 'application/json',
             'Authorization': `Bearer ${bearer}`,
             'Content-Type': 'application/json',
+            'User-Agent': `${packageJson.name}/${packageJson.version}`
         },
         validateStatus: () => true
     };
