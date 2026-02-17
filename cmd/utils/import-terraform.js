@@ -236,6 +236,9 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 const propValue = newTfFileObj['resource'][key][k]['value'];
                 if (newTfFileObj['resource'][key][k]['type'] === 'integration' && propValue in toolIdMap) {
                     newTfFileObj['resource'][key][k]['value'] = `\${${toolIdMap[propValue].type}.${toolIdMap[propValue].name}.tool_id}`;
+                } else {
+                    // escape newlines
+                    newTfFileObj['resource'][key][k]['value'] = propValue.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
                 }
             }
 
