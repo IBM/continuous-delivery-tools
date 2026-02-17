@@ -15,7 +15,7 @@ import { jsonToTf } from 'json-to-tf';
 import { getPipelineData, getToolchainTools } from './requests.js';
 import { runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
 import { getRandChars, isSecretReference, normalizeName } from './utils.js';
-import { logger } from './logger.js';
+import { LOG_STAGES, logger } from './logger.js';
 
 import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
@@ -236,9 +236,10 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 const propValue = newTfFileObj['resource'][key][k]['value'];
                 if (newTfFileObj['resource'][key][k]['type'] === 'integration' && propValue in toolIdMap) {
                     newTfFileObj['resource'][key][k]['value'] = `\${${toolIdMap[propValue].type}.${toolIdMap[propValue].name}.tool_id}`;
-                } else {
-                    // escape newlines
-                    newTfFileObj['resource'][key][k]['value'] = propValue.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+                } else if (propValue) {
+                    // escape newlines, double quotes and backslashes
+                    if (propValue.includes('\n')) logger.warn(`Warning! Multi-line values for pipeline and trigger properties are not yet supported in the provider, newlines will be replaced with '\\\\n': "${k}"`, LOG_STAGES.import, true);
+                    newTfFileObj['resource'][key][k]['value'] = propValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/"/g, '\\"');
                 }
             }
 
