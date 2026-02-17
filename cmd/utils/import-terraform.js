@@ -160,9 +160,24 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     // STEP 2/2: run terraform import and post-processing
     setTerraformEnv(apiKey, verbosity);
-    await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch((err) => { DEBUG_MODE && logger.dump(`\n[DEBUG_MODE=true] Draft errors: ${err}`) }); // temp fix for errors before post-processing
 
-    const generatedFile = fs.readFileSync(`${dir}/generated/draft.tf`);
+    let draftErrors = '';
+    await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch((err) => {
+        if (DEBUG_MODE) logger.dump(`\n[DEBUG_MODE=true] Draft errors: ${err}`);
+        draftErrors = err;
+    });
+    // above is a temp fix for errors before post-processing
+    // empty pipeline_id and trigger_id are expected and is a known provider bug
+
+    let generatedFile = '';
+    try {
+        generatedFile = fs.readFileSync(`${dir}/generated/draft.tf`);
+    } catch (err) {
+        // if draft file is missing, then something went wrong
+        // also, no need to log draft errors twice
+        throw new Error(err + (!DEBUG_MODE ? ('\nDraft errors: ' + draftErrors) : '\nDraft errors already logged'));
+    }
+
     const generatedFileJson = await tfToJson('draft.tf', generatedFile.toString());
 
     const newTfFileObj = { 'resource': {} }
