@@ -207,7 +207,7 @@ export function getRandChars(size) {
 
 export function normalizeName(str) {
     const specialChars = `-–—<>()*#{}[]|@_ .%'",&`; // turn these special chars into underscores
-    const whitelistRegex = /[^_\-\p{L}0-9]+/ug // this regex matches non-unicode letters, numbers, underscores, and hyphens
+    const whitelistRegex = /[^_\-\p{L}0-9]+/ug // this regex matches anything that is not (unicode, numbers, underscores, and hyphens)
 
     let newStr = str;
 
