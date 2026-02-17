@@ -206,12 +206,16 @@ export function getRandChars(size) {
 };
 
 export function normalizeName(str) {
-    const specialChars = `-<>()*#{}[]|@_ .%'",&`;
+    const specialChars = `-–—<>()*#{}[]|@_ .%'",&`; // turn these special chars into underscores
+    const whitelistRegex = /[^_\-\p{L}0-9]+/ug // this regex matches anything that is not (unicode, numbers, underscores, and hyphens)
+
     let newStr = str;
 
     for (const char of specialChars) {
         newStr = newStr.replaceAll(char, '_');
     }
+
+    newStr = newStr.replaceAll(whitelistRegex, '');
 
     return newStr.toLowerCase();
 };
