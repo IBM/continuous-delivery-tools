@@ -334,13 +334,15 @@ async function setupTerraformFiles(config) {
         if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_property') {
             for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'])) {
                 try {
-                    if (v['type'] === 'integration') {
-                        const thisValue = v['value'];
+                    const thisValue = v['value'];
 
-                        if (thisValue in toolIdToTfName) {
-                            const thisTfName = toolIdToTfName[thisValue];
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
-                        }
+                    if (v['type'] === 'integration' && thisValue in toolIdToTfName) {
+                        const thisTfName = toolIdToTfName[thisValue];
+                        newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
+                    } else if (thisValue) {
+                        // escape newlines, double quotes and backslashes
+                        // TODO: remove extra backslash in newline replacement once provider is updated
+                        newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                     }
                 }
                 catch {
@@ -354,13 +356,15 @@ async function setupTerraformFiles(config) {
         if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_trigger_property') {
             for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'])) {
                 try {
-                    if (v['type'] === 'integration') {
-                        const thisValue = v['value'];
+                    const thisValue = v['value'];
 
-                        if (thisValue in toolIdToTfName) {
-                            const thisTfName = toolIdToTfName[thisValue];
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
-                        }
+                    if (v['type'] === 'integration' && thisValue in toolIdToTfName) {
+                        const thisTfName = toolIdToTfName[thisValue];
+                        newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
+                    } else if (thisValue) {
+                        // escape newlines, double quotes and backslashes
+                        // TODO: remove extra backslash in newline replacement once provider is updated
+                        newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                     }
                 }
                 catch {
