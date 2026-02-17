@@ -217,5 +217,10 @@ export function normalizeName(str) {
 
     newStr = newStr.replaceAll(whitelistRegex, '');
 
+    // terraform resource names must start with a letter
+    if (!newStr.slice(0,1).match(/[A-Za-z]/)) {
+        newStr = `x_${newStr}`;
+    }
+
     return newStr.toLowerCase();
 };
