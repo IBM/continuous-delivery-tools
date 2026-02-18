@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -52,6 +52,11 @@ export const TEST_TOOLCHAINS = {
         name: 'KEEP-SINGLE-PIPELINE-TOOLCHAIN',
         crn: 'crn:v1:bluemix:public:toolchain:us-east:a/9e8559fac61ee9fc74d3e595fa75d147:5ef88780-1e0f-4cda-94c7-f78909cc1140::',
         region: 'us-east'
+    },
+    'special-chars': {
+        name: 'KEEP-SPECIAL-CHARS-_ .TOOLCHAIN',
+        crn: 'crn:v1:bluemix:public:toolchain:ca-tor:a/9e8559fac61ee9fc74d3e595fa75d147:bda05ed4-7092-4c7c-970a-7be53f1c1796::',
+        region: 'ca-tor'
     }
 };
 
