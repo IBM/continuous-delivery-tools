@@ -168,7 +168,30 @@ describe('copy-toolchain: Test functionalities', function () {
                     'Only \'yes\' will be accepted to proceed. (Ctrl-C to abort)': 'yes'
                 },
             }
-        }
+        },
+        {
+            name: 'Handles special characters in names',
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['special-chars'].crn, '-r', TEST_TOOLCHAINS['special-chars'].region, '-D', '-f'],
+            expected: null,
+            options: {
+                timeout: 100000,
+                cwd: TEMP_DIR + '/' + 'special-chars'
+            },
+            assertionFunc: () => {
+                assert.isTrue(
+                    areFilesInDir(TEMP_DIR + '/' + 'special-chars', [
+                        'cd_tekton_pipeline.tf',
+                        'cd_tekton_pipeline_definition.tf',
+                        'cd_tekton_pipeline_property.tf',
+                        'cd_tekton_pipeline_trigger.tf',
+                        'cd_tekton_pipeline_trigger_property.tf',
+                        'cd_toolchain.tf',
+                        'cd_toolchain_tool_hostedgit.tf',
+                        'cd_toolchain_tool_pipeline.tf',
+                    ])
+                );
+            }
+        },
     ];
 
     for (const { name, cmd, expected, options, assertionFunc } of testCases) {
