@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -12,6 +12,7 @@ import { resolve } from 'node:path'
 import nconf from 'nconf';
 
 import { logger } from '../cmd/utils/logger.js';
+import { cleanupToolchains } from './utils/testUtils.js';
 
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');
@@ -60,4 +61,10 @@ export const mochaHooks = {
     afterAll() {
         if (fs.existsSync(TEMP_DIR) && DEBUG_MODE === false) fs.rmSync(TEMP_DIR, { recursive: true });
     },
+};
+
+// Global root hook that runs once after all tests complete
+export const mochaGlobalTeardown = async function() {
+    // Clean up test toolchains created during test runs
+    await cleanupToolchains();
 };

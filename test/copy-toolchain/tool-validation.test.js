@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -12,7 +12,7 @@ import nconf from 'nconf';
 
 import { expect } from 'chai';
 
-import { assertPtyOutput, deleteCreatedToolchains } from '../utils/testUtils.js';
+import { assertPtyOutput } from '../utils/testUtils.js';
 import { TEST_TOOLCHAINS } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
 
@@ -23,9 +23,6 @@ const VERBOSE_MODE = nconf.get('VERBOSE_MODE');
 
 const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
-
-const toolchainsToDelete = new Map();
-after(async () => await deleteCreatedToolchains(toolchainsToDelete));
 
 describe('copy-toolchain: Test tool validation', function () {
     this.timeout('300s');
@@ -97,8 +94,7 @@ describe('copy-toolchain: Test tool validation', function () {
     for (const { name, cmd, expected, options, assertionFunc } of testCases) {
         if (VERBOSE_MODE) cmd.push('-v');
         it(`${name}`, async () => {
-            const res = await assertPtyOutput(cmd, expected, options, assertionFunc);
-            if (res) toolchainsToDelete.set(res.toolchainId, res.region);
+            await assertPtyOutput(cmd, expected, options, assertionFunc);
         });
     }
 });

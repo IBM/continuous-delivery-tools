@@ -158,6 +158,38 @@ async function getToolchainsByName(bearer, accountId, toolchainName) {
     }
 }
 
+async function getToolchainsByResourceGroup(bearer, accountId, resourceGroupId) {
+    const options = {
+        url: GHOST_BASE_URL + '/v3/resources/search',
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${bearer}`,
+            'Content-Type': 'application/json',
+        },
+        data: {
+            'query': `service_name:toolchain AND doc.resource_group_id:"${resourceGroupId}" AND doc.state:ACTIVE`,
+            'fields': ['doc.resource_group_id', 'doc.region_id', 'service_instance', 'name', 'crn']
+        },
+        params: { account_id: accountId, limit: 100 },
+        validateStatus: () => true
+    };
+    const response = await axios(options);
+    switch (response.status) {
+        case 200:
+            return response.data.items.map(item => {
+                return {
+                    id: item.service_instance,
+                    resource_group_id: item.doc.resource_group_id,
+                    region_id: item.doc.region_id,
+                    name: item.name,
+                    crn: item.crn
+                }
+            });
+        default:
+            throw Error('Get toolchains by resource group failed');
+    }
+}
+
 async function getCdInstanceByRegion(bearer, accountId, region) {
     if (MOCK_ALL_REQUESTS && process.env.MOCK_GET_CD_INSTANCE_BY_REGION_SCENARIO) {
         return mocks.getCdInstanceByRegionResponses[process.env.MOCK_GET_CD_INSTANCE_BY_REGION_SCENARIO].data.items.length > 0;
@@ -521,6 +553,7 @@ export {
     getCdInstanceByRegion,
     getToolchain,
     getToolchainsByName,
+    getToolchainsByResourceGroup,
     getToolchainTools,
     getPipelineData,
     getResourceGroups,

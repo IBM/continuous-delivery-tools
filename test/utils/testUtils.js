@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -17,8 +17,9 @@ import { parse as tfToJson } from '@cdktf/hcl2json'
 import nconf from 'nconf';
 import { expect, assert } from 'chai';
 
-import { getBearerToken, deleteToolchain } from '../../cmd/utils/requests.js';
+import { getBearerToken, getAccountId, deleteToolchain, getToolchainsByResourceGroup } from '../../cmd/utils/requests.js';
 import { logger } from '../../cmd/utils/logger.js';
+import { TEST_TOOLCHAINS, R2R_CLI_RG_ID } from '../data/test-toolchains.js';
 
 nconf.env('__');
 nconf.file('local', 'test/config/local.json');
@@ -149,11 +150,38 @@ export function runPtyProcess(fullCommand, options) {
     });
 }
 
-export async function deleteCreatedToolchains(toolchainsToDelete) {
-    if (toolchainsToDelete && typeof toolchainsToDelete === 'object' && toolchainsToDelete.size > 0) {
+export async function cleanupToolchains() {
+    // Clean up toolchains created by test runs
+    try {
         const token = await getBearerToken(IBMCLOUD_API_KEY);
-        const deletePromises = [...toolchainsToDelete.entries()].map(([id, region]) => deleteToolchain(token, id, region));
-        await Promise.all(deletePromises);
+        const accountId = await getAccountId(token, IBMCLOUD_API_KEY);
+        const toolchainsInRg = await getToolchainsByResourceGroup(token, accountId, R2R_CLI_RG_ID);
+        
+        // Find test toolchains to delete: those with same name and region as TEST_TOOLCHAINS but different CRN
+        const toolchainsToDelete = [];
+        for (const toolchain of toolchainsInRg) {
+            for (const testToolchain of Object.values(TEST_TOOLCHAINS)) {
+                if (toolchain.name === testToolchain.name &&
+                    toolchain.region_id === testToolchain.region &&
+                    toolchain.crn !== testToolchain.crn) {
+                    toolchainsToDelete.push({ id: toolchain.id, region: toolchain.region_id, name: toolchain.name });
+                    break;
+                }
+            }
+        }
+        
+        // Delete test toolchains
+        if (toolchainsToDelete.length > 0) {
+            const deletePromises = toolchainsToDelete.map(tc =>
+                deleteToolchain(token, tc.id, tc.region).catch(err => {
+                    console.error(`Failed to delete test toolchain ${tc.name} (${tc.id}): ${err.message}`);
+                })
+            );
+            await Promise.all(deletePromises);
+        }
+    } catch (err) {
+        console.error(`Failed to clean up test toolchains: ${err.message}`);
+        // Don't throw - we don't want cleanup failures to fail the tests
     }
 }
 

@@ -13,7 +13,7 @@ import fs from 'node:fs';
 
 import { expect, assert } from 'chai';
 
-import { assertPtyOutput, assertExecError, areFilesInDir, deleteCreatedToolchains, parseTcIdAndRegion } from '../utils/testUtils.js';
+import { assertPtyOutput, assertExecError, areFilesInDir, parseTcIdAndRegion } from '../utils/testUtils.js';
 import { getBearerToken, getToolchain } from '../../cmd/utils/requests.js';
 import { TEST_TOOLCHAINS, DEFAULT_RG_ID } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
@@ -27,9 +27,6 @@ const IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
 
 const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
-
-const toolchainsToDelete = new Map();
-after(async () => await deleteCreatedToolchains(toolchainsToDelete));
 
 describe('copy-toolchain: Test functionalities', function () {
     this.timeout('300s');
@@ -197,8 +194,7 @@ describe('copy-toolchain: Test functionalities', function () {
     for (const { name, cmd, expected, options, assertionFunc } of testCases) {
         if (VERBOSE_MODE) cmd.push('-v');
         it(`${name}`, async () => {
-            const res = await assertPtyOutput(cmd, expected, options, assertionFunc);
-            if (res) toolchainsToDelete.set(res.toolchainId, res.region);
+            await assertPtyOutput(cmd, expected, options, assertionFunc);
         });
     }
 
