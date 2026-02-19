@@ -175,7 +175,7 @@ async function main(options) {
 		}
 
 		const resourceGroups = await getResourceGroups(bearer, accountId, [targetRg || sourceToolchainData['resource_group_id']]);
-		({ id: targetRgId, name: targetRgName } = resourceGroups[0])
+		const { id: targetRgId, name: targetRgName } = resourceGroups[0];
 		// reuse name if not provided
 		if (!targetToolchainName) targetToolchainName = sourceToolchainData['name'];
 		[targetToolchainName, targetTag] = await warnDuplicateName(bearer, accountId, targetToolchainName, sourceRegion, targetRegion, targetRgId, targetRgName, targetTag, skipUserConfirmation);
