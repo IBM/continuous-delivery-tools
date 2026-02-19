@@ -10,7 +10,7 @@
 import path from 'node:path';
 import nconf from 'nconf';
 
-import { assertTfResourcesInDir, assertPtyOutput } from '../utils/testUtils.js';
+import { assertTfResourcesInDir, assertPtyOutput, cleanupToolchains } from '../utils/testUtils.js';
 import { TEST_TOOLCHAINS } from '../data/test-toolchains.js';
 
 nconf.env('__');
@@ -110,4 +110,8 @@ describe('copy-toolchain: Test import-terraform output', function () {
             await assertPtyOutput(cmd, expected, options, assertionFunc);
         });
     }
+
+    after(async function() {
+        await cleanupToolchains();
+    });
 });

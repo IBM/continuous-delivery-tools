@@ -13,7 +13,7 @@ import fs from 'node:fs';
 
 import { expect, assert } from 'chai';
 
-import { assertPtyOutput, assertExecError, areFilesInDir, parseTcIdAndRegion } from '../utils/testUtils.js';
+import { assertPtyOutput, assertExecError, areFilesInDir, parseTcIdAndRegion, cleanupToolchains } from '../utils/testUtils.js';
 import { getBearerToken, getToolchain } from '../../cmd/utils/requests.js';
 import { TEST_TOOLCHAINS, DEFAULT_RG_ID } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
@@ -212,5 +212,9 @@ describe('copy-toolchain: Test functionalities', function () {
             /Output directory already has 1 '.tf' files, please specify a different output directory/,
             { cwd: testDir }
         );
+    });
+
+    after(async function() {
+        await cleanupToolchains();
     });
 });

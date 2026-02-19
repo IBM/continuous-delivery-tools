@@ -12,7 +12,7 @@ import nconf from 'nconf';
 
 import { expect } from 'chai';
 
-import { assertPtyOutput } from '../utils/testUtils.js';
+import { assertPtyOutput, cleanupToolchains } from '../utils/testUtils.js';
 import { TEST_TOOLCHAINS } from '../data/test-toolchains.js';
 import { TARGET_REGIONS } from '../../config.js';
 
@@ -97,4 +97,8 @@ describe('copy-toolchain: Test tool validation', function () {
             await assertPtyOutput(cmd, expected, options, assertionFunc);
         });
     }
+
+    after(async function() {
+        await cleanupToolchains();
+    });
 });

@@ -68,3 +68,9 @@ export const mochaGlobalTeardown = async function() {
     // Clean up test toolchains created during test runs
     await cleanupToolchains();
 };
+
+// Global root hook that runs once before all tests start
+export const mochaGlobalSetup = async function() {
+    // Clean up any orphaned toolchains from previous test runs before starting tests
+    await cleanupToolchains();
+};
