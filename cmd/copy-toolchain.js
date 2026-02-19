@@ -158,16 +158,9 @@ async function main(options) {
 		}
 
 		// check for continuous delivery instance in target region and resource group
-		let cdInstanceFound = false;
 		const cdInstances = await getCdInstanceByRegion(bearer, accountId, targetRegion);
-		cdInstances?.forEach(instance => {
-			try {
-				if (instance['doc']['resource_group_id'] === sourceToolchainData['resource_group_id']) {
-					cdInstanceFound = true;
-				}
-			} catch {
-				// do nothing
-			}
+		const cdInstanceFound = cdInstances?.some((instance) => {
+			return instance.doc?.resource_group_id === sourceToolchainData['resource_group_id'];
 		});
 
 		if (!cdInstanceFound) {
