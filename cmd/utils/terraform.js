@@ -341,14 +341,14 @@ async function setupTerraformFiles(config) {
                         newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
                     } else if (thisValue) {
                         // escape newlines, double quotes and backslashes
-                        // TODO: remove extra backslash in newline replacement once provider is updated
 
                         const START_INDICATOR = '${jsonencode(';
                         const END_INDICATOR = ')}';
 
                         if (thisValue.startsWith(START_INDICATOR) && thisValue.endsWith(END_INDICATOR)) {
-                            // skip substitution for jsonencode case, don't want to mangle it
+                            // skip newline substitution for jsonencode case, don't want to mangle it
                         } else {
+                            // TODO: remove extra backslash in newline replacement once provider is updated
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                         }
                     }
@@ -371,15 +371,15 @@ async function setupTerraformFiles(config) {
                         newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = `\${ibm_cd_toolchain_tool_githubconsolidated.${thisTfName}.tool_id}`;
                     } else if (thisValue) {
                         // escape newlines, double quotes and backslashes
-                        // TODO: remove extra backslash in newline replacement once provider is updated
 
                         const START_INDICATOR = '${jsonencode(';
                         const END_INDICATOR = ')}';
 
                         if (thisValue.startsWith(START_INDICATOR) && thisValue.endsWith(END_INDICATOR)) {
-                            // skip substitution for jsonencode case, don't want to mangle it
+                            // skip newline substitution for jsonencode case, don't want to mangle it
                         } else {
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
+                            // TODO: remove extra backslash in newline replacement once provider is updated
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                         }
                     }
                 }

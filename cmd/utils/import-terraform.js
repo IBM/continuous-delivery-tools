@@ -252,6 +252,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 if (newTfFileObj['resource'][key][k]['type'] === 'integration' && propValue in toolIdMap) {
                     newTfFileObj['resource'][key][k]['value'] = `\${${toolIdMap[propValue].type}.${toolIdMap[propValue].name}.tool_id}`;
                 } else if (propValue) {
+                    // escape newlines, double quotes and backslashes
+
                     let newValue = propValue;
 
                     const START_INDICATOR = '${jsonencode(';
@@ -262,10 +264,10 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     } else {
                         if (propValue.includes('\n')) logger.warn(`Warning! Multi-line values for pipeline and trigger properties are not yet supported in the provider, newlines will be replaced with '\\\\n': "${k}"`, LOG_STAGES.import, true);
 
-                        // escape newlines, double quotes and backslashes
-                        newValue = newValue.replace(/\\/g, '\\\\').replace(/\n\s*/g, '').replace(/\r\s*/g, '').replace(/"/g, '\\"');
-                        newTfFileObj['resource'][key][k]['value'] = newValue;
+                        // TODO: remove extra backslash in newline replacement once provider is updated
+                        newValue = newValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                     }
+                    newTfFileObj['resource'][key][k]['value'] = newValue;
                 }
             }
 
