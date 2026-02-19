@@ -109,13 +109,6 @@ async function main(options) {
 		bearer = await getBearerToken(apiKey);
 		const accountId = await getAccountId(bearer, apiKey);
 
-		// check for continuous delivery instance in target region
-		if (!await getCdInstanceByRegion(bearer, accountId, targetRegion)) {
-			// give users the option to bypass
-			logger.warn(`Warning! Could not find a Continuous Delivery instance in the target region ${targetRegion} or you do not have permission to view, please create one before proceeding if one does not exist already.`, LOG_STAGES.setup);
-			await promptUserConfirmation(`Do you want to proceed anyway?`, 'yes', 'Toolchain migration cancelled.');
-		}
-
 		// check for existing .tf files in output directory
 		if (fs.existsSync(outputDir)) {
 			let files = fs.readdirSync(outputDir, { recursive: true });
@@ -164,8 +157,20 @@ async function main(options) {
 			exit(1);
 		}
 
+		// check for continuous delivery instance in target region and resource group
+		const cdInstances = await getCdInstanceByRegion(bearer, accountId, targetRegion);
+		const cdInstanceFound = cdInstances?.some((instance) => {
+			return instance.doc?.resource_group_id === sourceToolchainData['resource_group_id'];
+		});
+
+		if (!cdInstanceFound) {
+			// give users the option to bypass
+			logger.warn(`Warning! Could not find a Continuous Delivery instance in the target region ${targetRegion} and toolchain's resource group or you do not have permission to view, please create one before proceeding if one does not exist already.`, LOG_STAGES.setup);
+			await promptUserConfirmation(`Do you want to proceed anyway?`, 'yes', 'Toolchain migration cancelled.');
+		}
+
 		const resourceGroups = await getResourceGroups(bearer, accountId, [targetRg || sourceToolchainData['resource_group_id']]);
-		({ id: targetRgId, name: targetRgName } = resourceGroups[0])
+		({ id: targetRgId, name: targetRgName } = resourceGroups[0]);
 		// reuse name if not provided
 		if (!targetToolchainName) targetToolchainName = sourceToolchainData['name'];
 		[targetToolchainName, targetTag] = await warnDuplicateName(bearer, accountId, targetToolchainName, sourceRegion, targetRegion, targetRgId, targetRgName, targetTag, skipUserConfirmation);
