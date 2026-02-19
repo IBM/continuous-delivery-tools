@@ -165,7 +165,9 @@ async function main(options) {
 				if (instance['doc']['resource_group_id'] === sourceToolchainData['resource_group_id']) {
 					cdInstanceFound = true;
 				}
-			} catch { }
+			} catch {
+				// do nothing
+			}
 		});
 
 		if (!cdInstanceFound) {
@@ -175,7 +177,7 @@ async function main(options) {
 		}
 
 		const resourceGroups = await getResourceGroups(bearer, accountId, [targetRg || sourceToolchainData['resource_group_id']]);
-		const { id: targetRgId, name: targetRgName } = resourceGroups[0];
+		({ id: targetRgId, name: targetRgName } = resourceGroups[0]);
 		// reuse name if not provided
 		if (!targetToolchainName) targetToolchainName = sourceToolchainData['name'];
 		[targetToolchainName, targetTag] = await warnDuplicateName(bearer, accountId, targetToolchainName, sourceRegion, targetRegion, targetRgId, targetRgName, targetTag, skipUserConfirmation);
