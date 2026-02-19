@@ -254,25 +254,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 } else if (propValue) {
                     let newValue = propValue;
 
-                    const START_INDICATOR = '${jsonencode({';
-                    const END_INDICATOR = ')}';
-
-                    // handle jsonencode case, terraform's default way of handling json values
-                    if (propValue.startsWith(START_INDICATOR) && propValue.endsWith(END_INDICATOR)) {
-
-                        // replace terraform syntax with json syntax
-                        newValue = newValue.slice(START_INDICATOR.length, -(END_INDICATOR.length+1));
-                        newValue = newValue.trim();
-
-                        newValue = newValue.replace(/\n/g, ',');
-
-                        const pattern = /\s*(\w*)\s*=\s*/gm;
-                        newValue = newValue.replaceAll(pattern, (match, s) => `"${s}":`);
-                        newValue = `{${newValue}}`; // add brackets back
-                    }
-
                     if (propValue.includes('\n')) logger.warn(`Warning! Multi-line values for pipeline and trigger properties are not yet supported in the provider, newlines will be replaced with '\\\\n': "${k}"`, LOG_STAGES.import, true);
-                    
+
                     // escape newlines, double quotes and backslashes
                     newValue = newValue.replace(/\\/g, '\\\\').replace(/\n\s*/g, '').replace(/\r\s*/g, '').replace(/"/g, '\\"');
                     newTfFileObj['resource'][key][k]['value'] = newValue;
