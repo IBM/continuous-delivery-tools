@@ -180,7 +180,7 @@ async function getCdInstanceByRegion(bearer, accountId, region) {
     const response = await axios(options);
     switch (response.status) {
         case 200:
-            return response.data.items.length > 0;
+            return response.data.items.length > 0 ? response.data.items : null;
         default:
             throw Error('Get CD instance failed');
     }

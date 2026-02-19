@@ -109,13 +109,6 @@ async function main(options) {
 		bearer = await getBearerToken(apiKey);
 		const accountId = await getAccountId(bearer, apiKey);
 
-		// check for continuous delivery instance in target region
-		if (!await getCdInstanceByRegion(bearer, accountId, targetRegion)) {
-			// give users the option to bypass
-			logger.warn(`Warning! Could not find a Continuous Delivery instance in the target region ${targetRegion} or you do not have permission to view, please create one before proceeding if one does not exist already.`, LOG_STAGES.setup);
-			await promptUserConfirmation(`Do you want to proceed anyway?`, 'yes', 'Toolchain migration cancelled.');
-		}
-
 		// check for existing .tf files in output directory
 		if (fs.existsSync(outputDir)) {
 			let files = fs.readdirSync(outputDir, { recursive: true });
@@ -162,6 +155,23 @@ async function main(options) {
 		if (sourceToolchainCrn != sourceToolchainData['crn']) {
 			logger.error('Provided toolchain CRN is invalid', LOG_STAGES.setup);
 			exit(1);
+		}
+
+		// check for continuous delivery instance in target region and resource group
+		let cdInstanceFound = false;
+		const cdInstances = await getCdInstanceByRegion(bearer, accountId, targetRegion);
+		cdInstances?.forEach(instance => {
+			try {
+				if (instance['doc']['resource_group_id'] === sourceToolchainData['resource_group_id']) {
+					cdInstanceFound = true;
+				}
+			} catch { }
+		});
+
+		if (!cdInstanceFound) {
+			// give users the option to bypass
+			logger.warn(`Warning! Could not find a Continuous Delivery instance in the target region ${targetRegion} and toolchain's resource group or you do not have permission to view, please create one before proceeding if one does not exist already.`, LOG_STAGES.setup);
+			await promptUserConfirmation(`Do you want to proceed anyway?`, 'yes', 'Toolchain migration cancelled.');
 		}
 
 		const resourceGroups = await getResourceGroups(bearer, accountId, [targetRg || sourceToolchainData['resource_group_id']]);
