@@ -254,11 +254,18 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 } else if (propValue) {
                     let newValue = propValue;
 
-                    if (propValue.includes('\n')) logger.warn(`Warning! Multi-line values for pipeline and trigger properties are not yet supported in the provider, newlines will be replaced with '\\\\n': "${k}"`, LOG_STAGES.import, true);
+                    const START_INDICATOR = '${jsonencode(';
+                    const END_INDICATOR = ')}';
 
-                    // escape newlines, double quotes and backslashes
-                    newValue = newValue.replace(/\\/g, '\\\\').replace(/\n\s*/g, '').replace(/\r\s*/g, '').replace(/"/g, '\\"');
-                    newTfFileObj['resource'][key][k]['value'] = newValue;
+                    if (propValue.startsWith(START_INDICATOR) && propValue.endsWith(END_INDICATOR)) {
+                        // skip substitution for jsonencode case, don't want to mangle it
+                    } else {
+                        if (propValue.includes('\n')) logger.warn(`Warning! Multi-line values for pipeline and trigger properties are not yet supported in the provider, newlines will be replaced with '\\\\n': "${k}"`, LOG_STAGES.import, true);
+
+                        // escape newlines, double quotes and backslashes
+                        newValue = newValue.replace(/\\/g, '\\\\').replace(/\n\s*/g, '').replace(/\r\s*/g, '').replace(/"/g, '\\"');
+                        newTfFileObj['resource'][key][k]['value'] = newValue;
+                    }
                 }
             }
 
