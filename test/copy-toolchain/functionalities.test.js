@@ -28,6 +28,8 @@ const IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
 const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
 
+after(async () => await cleanupToolchains());
+
 describe('copy-toolchain: Test functionalities', function () {
     this.timeout('300s');
     this.command = COMMAND;
@@ -212,9 +214,5 @@ describe('copy-toolchain: Test functionalities', function () {
             /Output directory already has 1 '.tf' files, please specify a different output directory/,
             { cwd: testDir }
         );
-    });
-
-    after(async function() {
-        await cleanupToolchains();
     });
 });

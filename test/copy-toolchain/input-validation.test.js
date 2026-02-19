@@ -27,6 +27,7 @@ const TEMP_DIR = nconf.get('TEST_TEMP_DIR');
 const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
 
+after(async () => await cleanupToolchains());
 
 describe('copy-toolchain: Test user input handling', function () {
     this.timeout('120s');

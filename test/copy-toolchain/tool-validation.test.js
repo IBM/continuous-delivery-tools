@@ -24,6 +24,8 @@ const VERBOSE_MODE = nconf.get('VERBOSE_MODE');
 const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
 
+after(async () => await cleanupToolchains());
+
 describe('copy-toolchain: Test tool validation', function () {
     this.timeout('300s');
     this.command = COMMAND;
@@ -97,8 +99,4 @@ describe('copy-toolchain: Test tool validation', function () {
             await assertPtyOutput(cmd, expected, options, assertionFunc);
         });
     }
-
-    after(async function() {
-        await cleanupToolchains();
-    });
 });
