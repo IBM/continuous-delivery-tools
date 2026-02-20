@@ -270,6 +270,9 @@ async function setupTerraformFiles(config) {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
                         if (!v['depends_on'] && thisUrl && repoToTfName[thisUrl]) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
+                        } else if (!v['depends_on'] && thisUrl && !repoToTfName[thisUrl]) {
+                            // warn the user if the URL is not in the repoToTfName map
+                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.terraform);
                         }
                     }
                     catch {
@@ -304,6 +307,9 @@ async function setupTerraformFiles(config) {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
                         if (!v['depends_on'] && thisUrl && repoToTfName[thisUrl]) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
+                        } else if (!v['depends_on'] && thisUrl && !repoToTfName[thisUrl]) {
+                            // warn the user if the URL is not in the repoToTfName map
+                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.terraform);
                         }
                     }
                     catch {
