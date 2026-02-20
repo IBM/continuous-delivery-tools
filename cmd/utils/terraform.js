@@ -268,7 +268,7 @@ async function setupTerraformFiles(config) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
-                        if (!v['depends_on'] && thisUrl) {
+                        if (!v['depends_on'] && thisUrl && repoToTfName[thisUrl]) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
                         }
                     }
@@ -302,7 +302,7 @@ async function setupTerraformFiles(config) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'])) {
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
-                        if (!v['depends_on'] && thisUrl) {
+                        if (!v['depends_on'] && thisUrl && repoToTfName[thisUrl]) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
                         }
                     }
