@@ -263,16 +263,17 @@ async function setupTerraformFiles(config) {
                 }
             }
 
-            // set depends_on for references to legacy GHE integrations
-            if (hasGHE && newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
+            // set depends_on for references
+            if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
-                        if (!v['depends_on'] && thisUrl && repoToTfName[thisUrl]) {
+                        if (thisUrl && repoToTfName[thisUrl]) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
-                        } else if (!v['depends_on'] && thisUrl && !repoToTfName[thisUrl]) {
+                        } else if (thisUrl && !repoToTfName[thisUrl]) {
                             // warn the user if the URL is not in the repoToTfName map
-                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.terraform);
+                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
+                            logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
                         }
                     }
                     catch {
@@ -300,16 +301,17 @@ async function setupTerraformFiles(config) {
         }
 
         if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_definition') {
-            // set depends_on for references to legacy GHE integrations
-            if (hasGHE && newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition']) {
+            // set depends_on for references
+            if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'])) {
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
-                        if (!v['depends_on'] && thisUrl && repoToTfName[thisUrl]) {
+                        if (thisUrl && repoToTfName[thisUrl]) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
-                        } else if (!v['depends_on'] && thisUrl && !repoToTfName[thisUrl]) {
+                        } else if (thisUrl && !repoToTfName[thisUrl]) {
                             // warn the user if the URL is not in the repoToTfName map
-                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.terraform);
+                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
+                            logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
                         }
                     }
                     catch {
