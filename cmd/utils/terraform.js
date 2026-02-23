@@ -179,8 +179,8 @@ async function setupTerraformFiles(config) {
                     try {
                         newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
                         delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
-                    } catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`[Ignored error] processing auth_type for hostedgit tool "${k}": ${err.message}`);
                     }
 
                     try {
@@ -275,9 +275,8 @@ async function setupTerraformFiles(config) {
                             logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
                             logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
                         }
-                    }
-                    catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`[Ignored error] setting depends_on for tekton pipeline trigger "${k}": ${err.message}`);
                     }
                 }
             }
@@ -292,9 +291,8 @@ async function setupTerraformFiles(config) {
                         if (newUrl) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['source'][0]['properties'][0]['url'] = newUrl;
                         }
-                    }
-                    catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`[Ignored error] updating GRIT URL for tekton pipeline trigger "${k}": ${err.message}`);
                     }
                 }
             }
@@ -313,9 +311,8 @@ async function setupTerraformFiles(config) {
                             logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
                             logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
                         }
-                    }
-                    catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`[Ignored error] setting depends_on for tekton pipeline definition "${k}": ${err.message}`);
                     }
                 }
             }
@@ -330,9 +327,8 @@ async function setupTerraformFiles(config) {
                         if (newUrl) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['source'][0]['properties'][0]['url'] = newUrl;
                         }
-                    }
-                    catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`[Ignored error] updating GRIT URL for tekton pipeline definition "${k}": ${err.message}`);
                     }
                 }
             }
@@ -360,9 +356,8 @@ async function setupTerraformFiles(config) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                         }
                     }
-                }
-                catch {
-                    // do nothing
+                } catch (err) {
+                    logger.dump(`[Ignored error] processing tekton pipeline property "${k}": ${err.message}`);
                 }
 
             }
@@ -390,9 +385,8 @@ async function setupTerraformFiles(config) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                         }
                     }
-                }
-                catch {
-                    // do nothing
+                } catch (err) {
+                    logger.dump(`[Ignored error] processing tekton pipeline trigger property "${k}": ${err.message}`);
                 }
 
             }
@@ -534,7 +528,8 @@ function replaceDependsOn(str) {
             // get rid of the quotes
             return str.replaceAll(pattern, (match, s) => `  depends_on = \[\n    ${s.slice(1, s.length - 1)}\n  ]`);
         }
-    } catch {
+    } catch (err) {
+        logger.dump(`[Ignored error] replacing depends_on in terraform string: ${err.message}`);
         return str;
     }
 }
@@ -557,7 +552,8 @@ function addS2sScriptToToolchainTf(str, timeSuffix) {
             // get rid of the quotes
             return str.replace(pattern, (match, s1, s2) => `resource "ibm_cd_toolchain" "${s1}" {\n${s2}${provisionerStr(s1)}\n}`);
         }
-    } catch {
+    } catch (err) {
+        logger.dump(`[Ignored error] adding S2S script to toolchain terraform: ${err.message}`);
         return str;
     }
 }
