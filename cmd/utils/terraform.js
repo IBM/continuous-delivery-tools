@@ -180,7 +180,7 @@ async function setupTerraformFiles(config) {
                         newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
                         delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
                     } catch (err) {
-                        logger.dump(`[Potential error] processing auth_type for hostedgit tool "${k}": ${err.message}`);
+                        logger.dump(`[Potential error] converting auth_type for hostedgit tool "${k}": ${err.message}`);
                     }
 
                     try {
@@ -266,6 +266,7 @@ async function setupTerraformFiles(config) {
             // set depends_on for references
             if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
+                    if (!v['source']) continue; // skip triggers without source, which aren't tied to a repo
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
                         if (v['depends_on']?.length === 0) {
@@ -287,6 +288,7 @@ async function setupTerraformFiles(config) {
             // update GRIT urls
             if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
+                    if (!v['source']) continue; // skip triggers without source, which aren't tied to a repo
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
                         const newUrl = gritMapping[thisUrl];

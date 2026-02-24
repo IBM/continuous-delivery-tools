@@ -186,22 +186,22 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
         for (const [k, v] of Object.entries(value)) {
             newTfFileObj['resource'][key] = { ...(newTfFileObj['resource'][key] ?? []), [k]: v[0] };
 
-            // remove empty tool, which breaks jsonToTf
+            // remove empty tool (if it exists), which breaks jsonToTf
             try {
                 if (Object.keys(newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['tool'][0]).length < 1) {
                     delete newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['tool'];
                 }
-            } catch (err) {
-                logger.dump(`[Potential error] removing empty tool object for resource "${k}": ${err.message}`);
+            } catch {
+                // do nothing
             }
 
-            // handle missing worker, which breaks terraform
+            // handle missing worker (if it exists), which breaks terraform
             try {
                 if (newTfFileObj['resource'][key][k]['worker'][0]['id'] === null) {
                     delete newTfFileObj['resource'][key][k]['worker'];
                 }
-            } catch (err) {
-                logger.dump(`[Potential error] handling missing worker for resource "${k}": ${err.message}`);
+            } catch {
+                // do nothing
             }
 
             // ignore null values
@@ -209,26 +209,26 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 if (v2 === null) delete newTfFileObj['resource'][key][k][k2];
             }
 
-            // ignore null values in parameters
+            // ignore null values (if it exists) in parameters
             try {
                 if (Object.keys(v[0]['parameters'][0]).length > 0) {
                     for (const [k2, v2] of Object.entries(v[0]['parameters'][0])) {
                         if (v2 === null) delete newTfFileObj['resource'][key][k]['parameters'][0][k2];
                     }
                 }
-            } catch (err) {
-                logger.dump(`[Potential error] ignoring null values in parameters for resource "${k}": ${err.message}`);
+            } catch {
+                // do nothing
             }
 
-            // ignore null values in source properties
+            // ignore null values (if it exists) in source properties
             try {
                 if (Object.keys(v[0]['source'][0]['properties'][0]).length > 0) {
                     for (const [k2, v2] of Object.entries(v[0]['source'][0]['properties'][0])) {
                         if (v2 === null) delete newTfFileObj['resource'][key][k]['source'][0]['properties'][0][k2];
                     }
                 }
-            } catch (err) {
-                logger.dump(`[Potential error] ignoring null values in source properties for resource "${k}": ${err.message}`);
+            } catch {
+                // do nothing
             }
 
             // add/overwrite additional props
@@ -314,8 +314,9 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     // add repo url depends_on on second pass
     for (const [key, value] of Object.entries(generatedFileJson['resource'])) {
-        for (const [k, _] of Object.entries(value)) {
+        for (const [k, v] of Object.entries(value)) {
             if (key === 'ibm_cd_tekton_pipeline_definition' || key === 'ibm_cd_tekton_pipeline_trigger') {
+                if (key === 'ibm_cd_tekton_pipeline_trigger' && !v['source']) continue; // skip triggers without source, which aren't tied to a repo
                 try {
                     const thisUrl = newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['url'];
 
