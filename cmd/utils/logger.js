@@ -81,7 +81,7 @@ class Logger {
     }
 
     dump(msg) {
-        this.logStream?.write(stripAnsi(msg));
+        this.logStream?.write(stripAnsi(msg) + '\n');
     }
 
     close() {
