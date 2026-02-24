@@ -268,12 +268,15 @@ async function setupTerraformFiles(config) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
-                        if (thisUrl && repoToTfName[thisUrl]) {
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
-                        } else if (thisUrl && !repoToTfName[thisUrl]) {
-                            // warn the user if the URL is not in the repoToTfName map
-                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
-                            logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
+                        if (v['depends_on']?.length === 0) {
+                            if (thisUrl && repoToTfName[thisUrl]) {
+                                newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
+                            } else if (thisUrl && !repoToTfName[thisUrl]) {
+                                // warn the user if the URL is not in the repoToTfName map
+                                logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
+                                logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
+                                delete newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'];
+                            }
                         }
                     } catch (err) {
                         logger.dump(`[Ignored error] setting depends_on for tekton pipeline trigger "${k}": ${err.message}`);
@@ -304,12 +307,15 @@ async function setupTerraformFiles(config) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'])) {
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
-                        if (thisUrl && repoToTfName[thisUrl]) {
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
-                        } else if (thisUrl && !repoToTfName[thisUrl]) {
-                            // warn the user if the URL is not in the repoToTfName map
-                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
-                            logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
+                        if (v['depends_on']?.length === 0) {
+                            if (thisUrl && repoToTfName[thisUrl]) {
+                                newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
+                            } else if (thisUrl && !repoToTfName[thisUrl]) {
+                                // warn the user if the URL is not in the repoToTfName map
+                                logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
+                                logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
+                                delete newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'];
+                            }
                         }
                     } catch (err) {
                         logger.dump(`[Ignored error] setting depends_on for tekton pipeline definition "${k}": ${err.message}`);

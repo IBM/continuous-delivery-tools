@@ -321,6 +321,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
                     if (thisUrl in repoUrlMap) {
                         newTfFileObj['resource'][key][k]['depends_on'] = [`\${${repoUrlMap[thisUrl].type}.${repoUrlMap[thisUrl].name}}`];
+} else {
+                        newTfFileObj['resource'][key][k]['depends_on'] = []; // we will look for and remove these in terraform.js
                     }
                 } catch {
                     // do nothing
