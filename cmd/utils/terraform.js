@@ -180,7 +180,7 @@ async function setupTerraformFiles(config) {
                         newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
                         delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
                     } catch (err) {
-                        logger.dump(`[Ignored error] processing auth_type for hostedgit tool "${k}": ${err.message}`);
+                        logger.dump(`[Potential error] processing auth_type for hostedgit tool "${k}": ${err.message}`);
                     }
 
                     try {
@@ -279,7 +279,7 @@ async function setupTerraformFiles(config) {
                             }
                         }
                     } catch (err) {
-                        logger.dump(`[Ignored error] setting depends_on for tekton pipeline trigger "${k}": ${err.message}`);
+                        logger.dump(`[Potential error] setting depends_on for tekton pipeline trigger "${k}": ${err.message}`);
                     }
                 }
             }
@@ -295,7 +295,7 @@ async function setupTerraformFiles(config) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['source'][0]['properties'][0]['url'] = newUrl;
                         }
                     } catch (err) {
-                        logger.dump(`[Ignored error] updating GRIT URL for tekton pipeline trigger "${k}": ${err.message}`);
+                        logger.dump(`[Potential error] updating GRIT URL for tekton pipeline trigger "${k}": ${err.message}`);
                     }
                 }
             }
@@ -318,7 +318,7 @@ async function setupTerraformFiles(config) {
                             }
                         }
                     } catch (err) {
-                        logger.dump(`[Ignored error] setting depends_on for tekton pipeline definition "${k}": ${err.message}`);
+                        logger.dump(`[Potential error] setting depends_on for tekton pipeline definition "${k}": ${err.message}`);
                     }
                 }
             }
@@ -334,7 +334,7 @@ async function setupTerraformFiles(config) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['source'][0]['properties'][0]['url'] = newUrl;
                         }
                     } catch (err) {
-                        logger.dump(`[Ignored error] updating GRIT URL for tekton pipeline definition "${k}": ${err.message}`);
+                        logger.dump(`[Potential error] updating GRIT URL for tekton pipeline definition "${k}": ${err.message}`);
                     }
                 }
             }
@@ -363,7 +363,7 @@ async function setupTerraformFiles(config) {
                         }
                     }
                 } catch (err) {
-                    logger.dump(`[Ignored error] processing tekton pipeline property "${k}": ${err.message}`);
+                    logger.dump(`[Potential error] processing tekton pipeline property "${k}": ${err.message}`);
                 }
 
             }
@@ -392,7 +392,7 @@ async function setupTerraformFiles(config) {
                         }
                     }
                 } catch (err) {
-                    logger.dump(`[Ignored error] processing tekton pipeline trigger property "${k}": ${err.message}`);
+                    logger.dump(`[Potential error] processing tekton pipeline trigger property "${k}": ${err.message}`);
                 }
 
             }
@@ -535,7 +535,7 @@ function replaceDependsOn(str) {
             return str.replaceAll(pattern, (match, s) => `  depends_on = \[\n    ${s.slice(1, s.length - 1)}\n  ]`);
         }
     } catch (err) {
-        logger.dump(`[Ignored error] replacing depends_on in terraform string: ${err.message}`);
+        logger.dump(`[Potential error] replacing depends_on in terraform string: ${err.message}`);
         return str;
     }
 }
@@ -559,7 +559,7 @@ function addS2sScriptToToolchainTf(str, timeSuffix) {
             return str.replace(pattern, (match, s1, s2) => `resource "ibm_cd_toolchain" "${s1}" {\n${s2}${provisionerStr(s1)}\n}`);
         }
     } catch (err) {
-        logger.dump(`[Ignored error] adding S2S script to toolchain terraform: ${err.message}`);
+        logger.dump(`[Potential error] adding S2S script to toolchain terraform: ${err.message}`);
         return str;
     }
 }

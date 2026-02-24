@@ -163,7 +163,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     let draftErrors = '';
     await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch((err) => {
-        if (DEBUG_MODE) logger.dump(`\n[DEBUG_MODE=true] Draft errors: ${err}`);
+        if (DEBUG_MODE) logger.dump(`[Potential error][DEBUG_MODE=true] Draft errors: ${err}`);
         draftErrors = err;
     });
     // above is a temp fix for errors before post-processing
@@ -191,8 +191,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 if (Object.keys(newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['tool'][0]).length < 1) {
                     delete newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['tool'];
                 }
-            } catch {
-                // do nothing
+            } catch (err) {
+                logger.dump(`[Potential error] removing empty tool object for resource "${k}": ${err.message}`);
             }
 
             // handle missing worker, which breaks terraform
@@ -200,8 +200,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 if (newTfFileObj['resource'][key][k]['worker'][0]['id'] === null) {
                     delete newTfFileObj['resource'][key][k]['worker'];
                 }
-            } catch {
-                // do nothing
+            } catch (err) {
+                logger.dump(`[Potential error] handling missing worker for resource "${k}": ${err.message}`);
             }
 
             // ignore null values
@@ -216,8 +216,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                         if (v2 === null) delete newTfFileObj['resource'][key][k]['parameters'][0][k2];
                     }
                 }
-            } catch {
-                // do nothing
+            } catch (err) {
+                logger.dump(`[Potential error] ignoring null values in parameters for resource "${k}": ${err.message}`);
             }
 
             // ignore null values in source properties
@@ -227,8 +227,8 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                         if (v2 === null) delete newTfFileObj['resource'][key][k]['source'][0]['properties'][0][k2];
                     }
                 }
-            } catch {
-                // do nothing
+            } catch (err) {
+                logger.dump(`[Potential error] ignoring null values in source properties for resource "${k}": ${err.message}`);
             }
 
             // add/overwrite additional props
@@ -321,11 +321,11 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
                     if (thisUrl in repoUrlMap) {
                         newTfFileObj['resource'][key][k]['depends_on'] = [`\${${repoUrlMap[thisUrl].type}.${repoUrlMap[thisUrl].name}}`];
-} else {
+                    } else {
                         newTfFileObj['resource'][key][k]['depends_on'] = []; // we will look for and remove these in terraform.js
                     }
-                } catch {
-                    // do nothing
+                } catch (err) {
+                    logger.dump(`[Potential error] adding repo URL depends_on for resource "${k}": ${err.message}`);
                 }
             }
         }
