@@ -163,11 +163,11 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     let draftErrors = '';
     await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch((err) => {
-        if (DEBUG_MODE) logger.dump(`[DEBUG_MODE=true] Draft errors: ${err}`);
+        if (DEBUG_MODE) logger.dump(`\n[DEBUG_MODE=true] Draft errors: ${err}`);
         draftErrors = err;
     });
     // above is a temp fix for errors before post-processing
-    // empty pipeline_id and trigger_id are expected and is a known provider bug
+    // "Insufficient initialization blocks" error is expected
 
     let generatedFile = '';
     try {
@@ -326,7 +326,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                         newTfFileObj['resource'][key][k]['depends_on'] = []; // we will look for and remove these in terraform.js
                     }
                 } catch (err) {
-                    logger.dump(`[Warning] Could not add repo URL depends_on for resource "${k}": ${err.message}`);
+                    logger.dump(`\n[Warning] Could not add repo URL depends_on for resource "${k}": ${err.message}`);
                 }
             }
         }
