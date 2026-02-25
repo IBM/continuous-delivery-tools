@@ -31,7 +31,7 @@ export async function promptUserYesNo(question) {
 
     const answer = await rl.question(fullPrompt);
 
-    logger.dump(fullPrompt + '\n' + answer + '\n');
+    logger.dump(fullPrompt + answer + '\n\n');
     rl.close();
 
     const normalized = answer.toLowerCase().trim();
@@ -56,7 +56,7 @@ export async function promptUserConfirmation(question, expectedAns, exitMsg) {
     const fullPrompt = question + `\n\nOnly '${expectedAns}' will be accepted to proceed. (Ctrl-C to abort)\n\nEnter a value: `;
     const answer = await rl.question(fullPrompt);
 
-    logger.dump(fullPrompt + '\n' + answer + '\n');
+    logger.dump(fullPrompt + answer + '\n\n');
 
     if (answer.toLowerCase().trim() !== expectedAns) {
         if (exitMsg) logger.print('\n' + exitMsg);
@@ -129,7 +129,7 @@ export async function promptUserSelection(question, choices) {
 
     while (true) {
         const answer = await rl.question(promptText);
-        logger.dump(promptText + '\n' + answer + '\n');
+        logger.dump(promptText + answer + '\n\n');
 
         index = parseInt(answer.trim(), 10) - 1;
 
