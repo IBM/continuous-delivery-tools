@@ -160,10 +160,10 @@ export async function deleteCreatedToolchains(toolchainsToDelete) {
 export async function assertExecError(fullCommand, expectedMessage, options, assertionFn) {
     try {
         const output = await execCommand(fullCommand, options);
-        logger.dump(output);
+        logger.dump(output + '\n');
         throw new Error('Expected command to fail but it succeeded');
     } catch (e) {
-        logger.dump(e.message);
+        logger.dump(e.message + '\n');
         if (assertionFn) {
             const res = assertionFn(e.message);
             if (res instanceof Promise) await res;
@@ -178,7 +178,7 @@ export async function assertExecError(fullCommand, expectedMessage, options, ass
 export async function assertPtyOutput(fullCommand, expectedMessage, options, assertionFn) {
     try {
         const output = await runPtyProcess(fullCommand, options);
-        logger.dump(output);
+        logger.dump(output + '\n');
         if (assertionFn) {
             const res = assertionFn(output);
             if (res instanceof Promise) await res;
@@ -189,7 +189,7 @@ export async function assertPtyOutput(fullCommand, expectedMessage, options, ass
         }
         return parseTcIdAndRegion(output);
     } catch (e) {
-        logger.dump(e.message);
+        logger.dump(e.message + '\n');
         throw (e);
     }
 }

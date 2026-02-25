@@ -167,7 +167,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
         draftErrors = err;
     });
     // above is a temp fix for errors before post-processing
-    // empty pipeline_id and trigger_id are expected and is a known provider bug
+    // "Insufficient initialization blocks" error is expected
 
     let generatedFile = '';
     try {
@@ -186,7 +186,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
         for (const [k, v] of Object.entries(value)) {
             newTfFileObj['resource'][key] = { ...(newTfFileObj['resource'][key] ?? []), [k]: v[0] };
 
-            // remove empty tool, which breaks jsonToTf
+            // remove empty tool (if it exists), which breaks jsonToTf
             try {
                 if (Object.keys(newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['tool'][0]).length < 1) {
                     delete newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['tool'];
@@ -195,7 +195,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 // do nothing
             }
 
-            // handle missing worker, which breaks terraform
+            // handle missing worker (if it exists), which breaks terraform
             try {
                 if (newTfFileObj['resource'][key][k]['worker'][0]['id'] === null) {
                     delete newTfFileObj['resource'][key][k]['worker'];
@@ -209,7 +209,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 if (v2 === null) delete newTfFileObj['resource'][key][k][k2];
             }
 
-            // ignore null values in parameters
+            // ignore null values (if it exists) in parameters
             try {
                 if (Object.keys(v[0]['parameters'][0]).length > 0) {
                     for (const [k2, v2] of Object.entries(v[0]['parameters'][0])) {
@@ -220,7 +220,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 // do nothing
             }
 
-            // ignore null values in source properties
+            // ignore null values (if it exists) in source properties
             try {
                 if (Object.keys(v[0]['source'][0]['properties'][0]).length > 0) {
                     for (const [k2, v2] of Object.entries(v[0]['source'][0]['properties'][0])) {
@@ -314,16 +314,19 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     // add repo url depends_on on second pass
     for (const [key, value] of Object.entries(generatedFileJson['resource'])) {
-        for (const [k, _] of Object.entries(value)) {
+        for (const [k, v] of Object.entries(value)) {
             if (key === 'ibm_cd_tekton_pipeline_definition' || key === 'ibm_cd_tekton_pipeline_trigger') {
+                if (key === 'ibm_cd_tekton_pipeline_trigger' && !v['source']) continue; // skip triggers without source, which aren't tied to a repo
                 try {
                     const thisUrl = newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['url'];
 
                     if (thisUrl in repoUrlMap) {
                         newTfFileObj['resource'][key][k]['depends_on'] = [`\${${repoUrlMap[thisUrl].type}.${repoUrlMap[thisUrl].name}}`];
+                    } else {
+                        newTfFileObj['resource'][key][k]['depends_on'] = []; // we will look for and remove these in terraform.js
                     }
-                } catch {
-                    // do nothing
+                } catch (err) {
+                    logger.dump(`\n[Warning] Could not add repo URL depends_on for resource "${k}": ${err.message}`);
                 }
             }
         }

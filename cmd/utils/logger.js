@@ -62,7 +62,12 @@ class Logger {
         const level = LEVELS[type] || LEVELS.log;
         const formatted = (prefix ? this.#getFullPrefix(prefix) + ' ' : '') + `${level.color}${msg}${COLORS.reset}`;
         console[level.method](formatted);
-        this.logStream?.write(stripAnsi((prefix ? this.#getFullPrefix(prefix) + ' ' : '') + `[${type.toUpperCase()}] ` + msg) + '\n');
+        if (type === 'info') {
+            // leave out [INFO] type prefix in log file
+            this.logStream?.write(stripAnsi((prefix ? this.#getFullPrefix(prefix) + ' ' : '') + msg) + '\n');
+        } else {
+            this.logStream?.write(stripAnsi((prefix ? this.#getFullPrefix(prefix) + ' ' : '') + `[${type.toUpperCase()}] ` + msg) + '\n');
+        }
     }
 
     info(msg, prefix = '', force = false) { if (this.verbosity >= 1 || force) this.#baseLog('info', msg, prefix); }

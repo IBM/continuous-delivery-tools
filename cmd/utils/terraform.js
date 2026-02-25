@@ -179,8 +179,8 @@ async function setupTerraformFiles(config) {
                     try {
                         newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
                         delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
-                    } catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`\n[Warning] Could not convert auth_type for hostedgit tool "${k}": ${err.message}`);
                     }
 
                     try {
@@ -263,20 +263,24 @@ async function setupTerraformFiles(config) {
                 }
             }
 
-            // set depends_on for references to legacy GHE integrations
-            if (hasGHE && newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
+            // set depends_on for references
+            if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
+                    if (!v['source']) continue; // skip triggers without source, which aren't tied to a repo
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
-                        if (!v['depends_on'] && thisUrl && repoToTfName[thisUrl]) {
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
-                        } else if (!v['depends_on'] && thisUrl && !repoToTfName[thisUrl]) {
-                            // warn the user if the URL is not in the repoToTfName map
-                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.terraform);
+                        if (v['depends_on']?.length === 0) {
+                            if (thisUrl && repoToTfName[thisUrl]) {
+                                newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
+                            } else if (thisUrl && !repoToTfName[thisUrl]) {
+                                // warn the user if the URL is not in the repoToTfName map
+                                logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
+                                logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
+                                delete newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['depends_on'];
+                            }
                         }
-                    }
-                    catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`\n[Warning] Could not set depends_on for tekton pipeline trigger "${k}": ${err.message}`);
                     }
                 }
             }
@@ -284,6 +288,7 @@ async function setupTerraformFiles(config) {
             // update GRIT urls
             if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
+                    if (!v['source']) continue; // skip triggers without source, which aren't tied to a repo
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
                         const newUrl = gritMapping[thisUrl];
@@ -291,29 +296,31 @@ async function setupTerraformFiles(config) {
                         if (newUrl) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][k]['source'][0]['properties'][0]['url'] = newUrl;
                         }
-                    }
-                    catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`\n[Warning] Could not update GRIT URL for tekton pipeline trigger "${k}": ${err.message}`);
                     }
                 }
             }
         }
 
         if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_definition') {
-            // set depends_on for references to legacy GHE integrations
-            if (hasGHE && newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition']) {
+            // set depends_on for references
+            if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'])) {
                     try {
                         const thisUrl = v['source'][0]['properties'][0]['url'];
-                        if (!v['depends_on'] && thisUrl && repoToTfName[thisUrl]) {
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
-                        } else if (!v['depends_on'] && thisUrl && !repoToTfName[thisUrl]) {
-                            // warn the user if the URL is not in the repoToTfName map
-                            logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.terraform);
+                        if (v['depends_on']?.length === 0) {
+                            if (thisUrl && repoToTfName[thisUrl]) {
+                                newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'] = [`ibm_cd_toolchain_tool_githubconsolidated.${repoToTfName[thisUrl]}`]
+                            } else if (thisUrl && !repoToTfName[thisUrl]) {
+                                // warn the user if the URL is not in the repoToTfName map
+                                logger.warn(`Warning! Could not find a matching tool integration for ${thisUrl}`, LOG_STAGES.tf, true);
+                                logger.warn(` - for definition found in ${v['pipeline_id']?.slice(2, -9)}`, LOG_STAGES.tf, true); // slice out the terraform address
+                                delete newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['depends_on'];
+                            }
                         }
-                    }
-                    catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`\n[Warning] Could not set depends_on for tekton pipeline definition "${k}": ${err.message}`);
                     }
                 }
             }
@@ -328,9 +335,8 @@ async function setupTerraformFiles(config) {
                         if (newUrl) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_definition'][k]['source'][0]['properties'][0]['url'] = newUrl;
                         }
-                    }
-                    catch {
-                        // do nothing
+                    } catch (err) {
+                        logger.dump(`\n[Warning] Could not update GRIT URL for tekton pipeline definition "${k}": ${err.message}`);
                     }
                 }
             }
@@ -358,9 +364,8 @@ async function setupTerraformFiles(config) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                         }
                     }
-                }
-                catch {
-                    // do nothing
+                } catch (err) {
+                    logger.dump(`\n[Warning] Could not process tekton pipeline property "${k}": ${err.message}`);
                 }
 
             }
@@ -388,9 +393,8 @@ async function setupTerraformFiles(config) {
                             newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
                         }
                     }
-                }
-                catch {
-                    // do nothing
+                } catch (err) {
+                    logger.dump(`\n[Warning] Could not process tekton pipeline trigger property "${k}": ${err.message}`);
                 }
 
             }
@@ -532,7 +536,8 @@ function replaceDependsOn(str) {
             // get rid of the quotes
             return str.replaceAll(pattern, (match, s) => `  depends_on = \[\n    ${s.slice(1, s.length - 1)}\n  ]`);
         }
-    } catch {
+    } catch (err) {
+        logger.dump(`\n[Warning] Could not replace depends_on in terraform string: ${err.message}`);
         return str;
     }
 }
@@ -555,7 +560,8 @@ function addS2sScriptToToolchainTf(str, timeSuffix) {
             // get rid of the quotes
             return str.replace(pattern, (match, s1, s2) => `resource "ibm_cd_toolchain" "${s1}" {\n${s2}${provisionerStr(s1)}\n}`);
         }
-    } catch {
+    } catch (err) {
+        logger.dump(`\n[Warning] Could not add S2S script to toolchain terraform: ${err.message}`);
         return str;
     }
 }

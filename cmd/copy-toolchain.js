@@ -368,7 +368,7 @@ async function main(options) {
 
 			if (verbosity >= 1) logger.print(''); // newline for spacing
 			logger.info(`Toolchain "${sourceToolchainData['name']}" from ${sourceRegion} was cloned to "${targetToolchainName ?? sourceToolchainData['name']}" in ${targetRegion} ${applyErrors ? 'with some errors' : 'successfully'}, with ${numResourcesCreated} / ${numResourcesPlanned} resources created!`, LOG_STAGES.info, true);
-			if (hasS2SFailures) logger.warn(`One or more service-to-service auth policies could not be created, see ${outputDir}/.s2s-script-failures-${TIME_SUFFIX} for more details.`, '', true);
+			if (hasS2SFailures) logger.warn(`Warning! One or more service-to-service auth policies could not be created, see ${outputDir}/.s2s-script-failures-${TIME_SUFFIX} for more details.`, LOG_STAGES.info, true);
 			if (newTcId) logger.info(`Cloned toolchain: https://${CLOUD_PLATFORM}/devops/toolchains/${newTcId}?env_id=ibm:yp:${targetRegion}`, LOG_STAGES.info, true);
 		} else {
 			logger.info(`DRY_RUN: ${dryRun}, skipping terraform apply...`, LOG_STAGES.tf);
