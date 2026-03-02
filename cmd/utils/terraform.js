@@ -360,8 +360,7 @@ async function setupTerraformFiles(config) {
                         if (thisValue.startsWith(START_INDICATOR) && thisValue.endsWith(END_INDICATOR)) {
                             // skip newline substitution for jsonencode case, don't want to mangle it
                         } else {
-                            // TODO: remove extra backslash in newline replacement once provider is updated
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/"/g, '\\"');
                         }
                     }
                 } catch (err) {
@@ -389,8 +388,7 @@ async function setupTerraformFiles(config) {
                         if (thisValue.startsWith(START_INDICATOR) && thisValue.endsWith(END_INDICATOR)) {
                             // skip newline substitution for jsonencode case, don't want to mangle it
                         } else {
-                            // TODO: remove extra backslash in newline replacement once provider is updated
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/"/g, '\\"');
                         }
                     }
                 } catch (err) {

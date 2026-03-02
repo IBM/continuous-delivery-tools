@@ -262,10 +262,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     if (propValue.startsWith(START_INDICATOR) && propValue.endsWith(END_INDICATOR)) {
                         // skip substitution for jsonencode case, don't want to mangle it
                     } else {
-                        if (propValue.includes('\n')) logger.warn(`Warning! Multi-line values for pipeline and trigger properties are not yet supported in the provider, newlines will be replaced with '\\\\n': "${k}"`, LOG_STAGES.import, true);
-
-                        // TODO: remove extra backslash in newline replacement once provider is updated
-                        newValue = newValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/"/g, '\\"');
+                        newValue = newValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/"/g, '\\"');
                     }
                     newTfFileObj['resource'][key][k]['value'] = newValue;
                 }
