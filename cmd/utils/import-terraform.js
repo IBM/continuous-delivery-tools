@@ -15,7 +15,7 @@ import { jsonToTf } from 'json-to-tf';
 import { getPipelineData, getToolchainTools } from './requests.js';
 import { runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
 import { getRandChars, isSecretReference, normalizeName } from './utils.js';
-import { LOG_STAGES, logger } from './logger.js';
+import { logger } from './logger.js';
 
 import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
@@ -331,13 +331,20 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     if (!isCompact) {
         for (const [key, value] of Object.entries(newTfFileObj['resource'])) {
-            if (!key.startsWith('ibm_')) continue;
-            const newFileName = key.split('ibm_')[1];
+            try {
+                if (!key.startsWith('ibm_')) continue;
+                const newFileName = key.split('ibm_')[1];
 
-            const newFileContents = { 'resource': { [key]: value } };
-            const newFileContentsJson = jsonToTf(JSON.stringify(newFileContents));
+                const newFileContentsJson = { 'resource': { [key]: value } };
+                const newFileContentsTf = jsonToTf(JSON.stringify(newFileContentsJson));
 
-            fs.writeFileSync(`${dir}/generated/${newFileName}.tf`, newFileContentsJson);
+                fs.writeFileSync(`${dir}/generated/${newFileName}.tf`, newFileContentsTf);
+            } catch (err) {
+                // some extra error logging
+                logger.dump(`\nCurrent resource: ${key}`);
+                logger.dump(`\n  Current resource value: ${JSON.stringify(value, null, 2)}`);
+                throw err;
+            }
         }
     } else {
         const generatedFileNew = jsonToTf(JSON.stringify(newTfFileObj));
