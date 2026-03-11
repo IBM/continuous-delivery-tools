@@ -213,17 +213,9 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             try {
                 if (Object.keys(v[0]['parameters'][0]).length > 0) {
                     for (const [k2, v2] of Object.entries(v[0]['parameters'][0])) {
-                        if (v2 === null) delete newTfFileObj['resource'][key][k]['parameters'][0][k2];
+                        if (v2 === null && k2 != 'name') delete newTfFileObj['resource'][key][k]['parameters'][0][k2];
+                        // don't delete name, just leave it as null if it is already null
                     }
-                }
-            } catch {
-                // do nothing
-            }
-
-            // if parameters is now empty after removing null values, remove parameters entirely
-            try {
-                if (Object.keys(v[0]['parameters'][0]).length === 0) {
-                    newTfFileObj['resource'][key][k]['parameters'] = [];
                 }
             } catch {
                 // do nothing
