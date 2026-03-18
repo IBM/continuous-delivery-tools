@@ -31,7 +31,7 @@ const writeFilePromise = promisify(fs.writeFile)
 async function execPromise(command, options) {
     try {
         const exec = promisify(child_process.exec);
-        const { stdout, _ } = await exec(command, options);
+        const { stdout, _ } = await exec(command, {...options, maxBuffer: 10 * 1024 * 1024}); // set max buffer to 10MB
         return stdout.trim();
     } catch (err) {
         throw new Error(`Command failed: ${command} \n${err.stderr || err.stdout}`);
