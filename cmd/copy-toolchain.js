@@ -86,7 +86,11 @@ async function main(options) {
 
 	logger.setVerbosity(verbosity);
 	if (LOG_DUMP) logger.createLogStream(`${LOGS_DIR}/copy-toolchain-${TIME_SUFFIX}.log`);
-	logger.dump(`Options: ${JSON.stringify(options)}\n`);
+
+	// redact apikey option in logs
+	const printOptions = options;
+	printOptions.apikey ? printOptions.apikey = '<API KEY>' : delete printOptions.apikey;
+	logger.dump(`Options: ${JSON.stringify(printOptions)}\n`);
 
 	let bearer;
 	let sourceToolchainId;
