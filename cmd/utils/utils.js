@@ -224,3 +224,10 @@ export function normalizeName(str) {
 
     return newStr.toLowerCase();
 };
+
+export function escapeReservedChars(str) {
+    if (!str || typeof str !== 'string') {
+        return str;
+    }
+    return str.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/"/g, '\\"');
+};

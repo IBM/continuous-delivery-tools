@@ -16,7 +16,7 @@ import { jsonToTf } from 'json-to-tf';
 
 import { validateToolchainId, validateGritUrl } from './validate.js';
 import { logger, LOG_STAGES } from './logger.js';
-import { getRandChars, promptUserInput, replaceUrlRegion } from './utils.js';
+import { escapeReservedChars, getRandChars, promptUserInput, replaceUrlRegion } from './utils.js';
 
 const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
@@ -258,8 +258,16 @@ async function setupTerraformFiles(config) {
             // by default, disable triggers
             if (disableTriggers && newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
                 for (const key of Object.keys(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
-                    if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['type'] === 'manual') continue; // skip manual triggers
-                    newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['enabled'] = false;
+                    // escape filter, which may contain reserved characters
+                    const filterVal = newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['filter'];
+                    if (filterVal) {
+                        newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['filter'] = escapeReservedChars(filterVal);
+                    }
+
+                    // disable all triggers (timed, git, webhooks) except manual triggers
+                    if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['type'] != 'manual') {
+                        newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['enabled'] = false;
+                    }
                 }
             }
 
@@ -360,7 +368,7 @@ async function setupTerraformFiles(config) {
                         if (thisValue.startsWith(START_INDICATOR) && thisValue.endsWith(END_INDICATOR)) {
                             // skip newline substitution for jsonencode case, don't want to mangle it
                         } else {
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/"/g, '\\"');
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_property'][k]['value'] = escapeReservedChars(thisValue);
                         }
                     }
                 } catch (err) {
@@ -388,7 +396,7 @@ async function setupTerraformFiles(config) {
                         if (thisValue.startsWith(START_INDICATOR) && thisValue.endsWith(END_INDICATOR)) {
                             // skip newline substitution for jsonencode case, don't want to mangle it
                         } else {
-                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = thisValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/"/g, '\\"');
+                            newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger_property'][k]['value'] = escapeReservedChars(thisValue);
                         }
                     }
                 } catch (err) {

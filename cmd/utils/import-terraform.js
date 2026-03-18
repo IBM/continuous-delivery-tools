@@ -14,7 +14,7 @@ import { jsonToTf } from 'json-to-tf';
 
 import { getPipelineData, getToolchainTools } from './requests.js';
 import { runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
-import { getRandChars, isSecretReference, normalizeName } from './utils.js';
+import { escapeReservedChars, getRandChars, isSecretReference, normalizeName } from './utils.js';
 import { logger } from './logger.js';
 
 import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
@@ -263,7 +263,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     if (propValue.startsWith(START_INDICATOR) && propValue.endsWith(END_INDICATOR)) {
                         // skip substitution for jsonencode case, don't want to mangle it
                     } else {
-                        newValue = newValue.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/"/g, '\\"');
+                        newValue = escapeReservedChars(propValue);
                     }
                     newTfFileObj['resource'][key][k]['value'] = newValue;
                 }
@@ -314,7 +314,12 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     for (const [key, value] of Object.entries(generatedFileJson['resource'])) {
         for (const [k, v] of Object.entries(value)) {
             if (key === 'ibm_cd_tekton_pipeline_definition' || key === 'ibm_cd_tekton_pipeline_trigger') {
-                if (key === 'ibm_cd_tekton_pipeline_trigger' && !v['source']) continue; // skip triggers without source, which aren't tied to a repo
+                // escape filter, which may contain reserved characters
+                if (key === 'ibm_cd_tekton_pipeline_trigger' && v[0]['filter']) {
+                    newTfFileObj['resource'][key][k]['filter'] = escapeReservedChars(v[0]['filter']);
+                }
+
+                if (key === 'ibm_cd_tekton_pipeline_trigger' && !v[0]['source']) continue; // skip triggers without source, which aren't tied to a repo
                 try {
                     const thisUrl = newTfFileObj['resource'][key][k]['source'][0]['properties'][0]['url'];
 
