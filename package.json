@@ -40,6 +40,7 @@
     "node-pty": "^1.0.0"
   },
   "overrides": {
-    "serialize-javascript": "^7.0.3"
+    "serialize-javascript": "^7.0.5",
+    "diff": "^8.0.0"
   }
 }
