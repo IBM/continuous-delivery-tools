@@ -2,7 +2,6 @@ node_modules
 .migration-temp-*
 output-*
 .logs
-.npmrc
 test/.tmp
 test/.test-logs
 test/config/local.json
