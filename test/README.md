@@ -13,14 +13,20 @@ Before running tests, ensure that you have completed the setup steps in the main
     ```bash
     npm install
     ```
-3. **Test configuration**
+3. **Fix node-pty executable**
+
+    macOS only: There is a bug in one of the executables used by `node-pty`, the prebuilt binary is missing the executable flag, causing errors like `Error: posix_spawnp failed.`. You can fix this manually:
+    ```bash
+    chmod +x node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper
+    ```
+4. **Test configuration**
 
     Before running tests, create a local configuration file:
     ```bash
     cp test/config/local.template.json test/config/local.json
     ```
     Then open `test/config/local.json` and replace all placeholder values with your local or test environment settings.
-4. **Running the tests**
+5. **Running the tests**
     
     To execute the test suite:
     ```bash

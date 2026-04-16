@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -93,7 +93,7 @@ describe('copy-toolchain: Test import-terraform output', function () {
                     ibm_cd_tekton_pipeline_trigger: 1,
                     ibm_cd_tekton_pipeline_trigger_property: 1,
                     ibm_cd_toolchain: 1,
-                    ibm_cd_toolchain_tool_custom: 1,
+                    ibm_cd_toolchain_tool_cos: 1,
                     ibm_cd_toolchain_tool_devopsinsights: 1,
                     ibm_cd_toolchain_tool_hostedgit: 1,
                     ibm_cd_toolchain_tool_pipeline: 1,
