@@ -15,38 +15,28 @@ export const TEST_TOOLCHAINS = {
     },
     'misconfigured': {
         name: 'KEEP-MISCONFIGURED-TOOLCHAIN',
-        crn: 'crn:v1:bluemix:public:toolchain:eu-es:a/9e8559fac61ee9fc74d3e595fa75d147:0ccfaa70-ca90-47db-8246-f4ecfc6ad8f3::',
-        region: 'eu-es'
+        crn: 'crn:v1:bluemix:public:toolchain:eu-gb:a/9e8559fac61ee9fc74d3e595fa75d147:128b55a7-56c3-4cc0-87f7-abb24ff0fc6a::',
+        region: 'eu-gb'
     },
     '1pl-ghe-cc': {
         name: 'KEEP-1PL-GHE-CC',
-        crn: 'crn:v1:bluemix:public:toolchain:eu-es:a/9e8559fac61ee9fc74d3e595fa75d147:9d51bb6b-f659-4ab7-9bc4-2eae1d61f4e7::',
-        region: 'eu-es'
+        crn: 'crn:v1:bluemix:public:toolchain:eu-de:a/9e8559fac61ee9fc74d3e595fa75d147:6d75fa57-4eb0-4654-a664-58233ee2aad2::',
+        region: 'eu-de'
     },
     '1pl-ghe-cd': {
         name: 'KEEP-1PL-GHE-CD',
-        crn: 'crn:v1:bluemix:public:toolchain:eu-es:a/9e8559fac61ee9fc74d3e595fa75d147:6a70313f-a927-4b0e-8471-70f17330998d::',
-        region: 'eu-es'
+        crn: 'crn:v1:bluemix:public:toolchain:eu-de:a/9e8559fac61ee9fc74d3e595fa75d147:34df7ab1-bb87-4c34-bf72-1e83d04b0999::',
+        region: 'eu-de'
     },
     '1pl-ghe-ci': {
         name: 'KEEP-1PL-GHE-CI',
-        crn: 'crn:v1:bluemix:public:toolchain:eu-es:a/9e8559fac61ee9fc74d3e595fa75d147:6b8e27ae-5924-4a38-8819-f405366cb900::',
-        region: 'eu-es'
-    },
-    'devsecops-grit-cc': {
-        name: 'KEEP-DevSecOps-GRIT-CC',
-        crn: 'crn:v1:bluemix:public:toolchain:eu-es:a/9e8559fac61ee9fc74d3e595fa75d147:920f6a94-4c1b-412b-b95c-baf823958744::',
-        region: 'eu-es'
-    },
-    'devsecops-grit-cd': {
-        name: 'KEEP-DevSecOps-GRIT-CD',
-        crn: 'crn:v1:bluemix:public:toolchain:eu-es:a/9e8559fac61ee9fc74d3e595fa75d147:8618565f-08fa-4cac-9250-029cac7b41ba::',
-        region: 'eu-es'
+        crn: 'crn:v1:bluemix:public:toolchain:eu-de:a/9e8559fac61ee9fc74d3e595fa75d147:7769bb82-0ef5-4b5d-92c1-5089ac7ff385::',
+        region: 'eu-de'
     },
     'devsecops-grit-ci': {
         name: 'KEEP-DevSecOps-GRIT-CI',
-        crn: 'crn:v1:bluemix:public:toolchain:eu-es:a/9e8559fac61ee9fc74d3e595fa75d147:cdc271bc-cc07-4a85-beb2-895e033319b0::',
-        region: 'eu-es'
+        crn: 'crn:v1:bluemix:public:toolchain:eu-de:a/9e8559fac61ee9fc74d3e595fa75d147:1befe39f-e278-439b-a59a-fb16f14119c3::',
+        region: 'eu-de'
     },
     'single-pl': {
         name: 'KEEP-SINGLE-PIPELINE-TOOLCHAIN',
