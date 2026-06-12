@@ -88,7 +88,7 @@ async function main(options) {
 	if (LOG_DUMP) logger.createLogStream(`${LOGS_DIR}/copy-toolchain-${TIME_SUFFIX}.log`);
 
 	// redact apikey option in logs
-	const printOptions = options;
+	const printOptions = { ...options };
 	printOptions.apikey ? printOptions.apikey = '<API KEY>' : delete printOptions.apikey;
 	logger.dump(`Options: ${JSON.stringify(printOptions)}\n`);
 
