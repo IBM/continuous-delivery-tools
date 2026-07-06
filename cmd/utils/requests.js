@@ -201,7 +201,8 @@ async function getToolchainTools(bearer, toolchainId, region) {
     const response = await axios(options);
     switch (response.status) {
         case 200: {
-            return { tools: response.data.items[0].services };
+            const toolchain = response.data.items[0];
+            return { tools: toolchain.services.map(tool => convertV1ToolToV2(tool, toolchain, region)) };
         }
         default:
             throw Error(response.statusText);
@@ -513,6 +514,38 @@ function shouldFailover(err) {
   if (status === 401) return true;
 
   return false;
+}
+
+function convertV1ToolToV2(tool, toolchain, region) {
+    const stateMap = { 'new': 'unconfigured', 'error': 'misconfigured' };
+    const baseV2Url = `https://api.${region}.devops.cloud.ibm.com/toolchain/v2/toolchains`;
+
+    let uiHref = tool.dashboard_url
+        ? (tool.dashboard_url.startsWith('/') ? `https://${CLOUD_PLATFORM}${tool.dashboard_url}` : tool.dashboard_url)
+        : null;
+
+    if (uiHref && (tool.service_id === 'pipeline' || tool.service_id === 'private_worker')) {
+        const url = new URL(uiHref);
+        if (!url.searchParams.get('env_id')) {
+            url.searchParams.set('env_id', `ibm:yp:${region}`);
+            uiHref = url.href;
+        }
+    }
+
+    return {
+        id:                tool.instance_id,
+        crn:               `${toolchain.crn.replace(/::$/, '')}:tool:${tool.instance_id}`,
+        name:              tool.toolchain_binding?.name ?? null,
+        toolchain_id:      toolchain.toolchain_guid,
+        toolchain_crn:     toolchain.crn,
+        tool_type_id:      tool.service_id,
+        resource_group_id: tool.container.guid,
+        href:              `${baseV2Url}/${toolchain.toolchain_guid}/tools/${tool.instance_id}`,
+        referent:          { ui_href: uiHref },
+        parameters:        tool.parameters ?? {},
+        state:             stateMap[tool.status?.state] ?? tool.status?.state,
+        updated_at:        tool.updated_at ?? null
+    };
 }
 
 export {
