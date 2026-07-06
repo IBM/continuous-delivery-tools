@@ -187,22 +187,22 @@ async function getCdInstanceByRegion(bearer, accountId, region) {
 }
 
 async function getToolchainTools(bearer, toolchainId, region) {
-    const apiBaseUrl = TOOLCHAIN_BASE_ENDPOINT || `https://api.${region}.devops.cloud.ibm.com/toolchain/v2`;
+    const apiBaseUrl = TOOLCHAIN_BASE_ENDPOINT || `https://otc-api.${region}.devops.cloud.ibm.com/api/v1/toolchains`;
     const options = {
         method: 'GET',
-        url: `${apiBaseUrl}/toolchains/${toolchainId}/tools`,
+        url: `${apiBaseUrl}/${toolchainId}?include=everything`,
         headers: {
             'Accept': 'application/json',
             'Authorization': `Bearer ${bearer}`,
             'Content-Type': 'application/json',
         },
-        params: { limit: 150 },
         validateStatus: () => true
     };
     const response = await axios(options);
     switch (response.status) {
-        case 200:
-            return response.data;
+        case 200: {
+            return { tools: response.data.items[0].services };
+        }
         default:
             throw Error(response.statusText);
     }
