@@ -109,7 +109,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             ];
 
 
-            pipelineData.definitions.forEach((def) => {
+            pipelineData.definitions?.forEach((def) => {
                 block = importBlock(`${pipelineData.id}/${def.id}`, 'definition', 'ibm_cd_tekton_pipeline_definition');
                 importBlocks.push(block);
 
@@ -119,7 +119,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 ];
             });
 
-            pipelineData.properties.forEach((prop) => {
+            pipelineData.properties?.forEach((prop) => {
                 block = importBlock(`${pipelineData.id}/${prop.name}`, prop.name, 'ibm_cd_tekton_pipeline_property');
                 importBlocks.push(block);
 
@@ -129,7 +129,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 ];
             });
 
-            pipelineData.triggers.forEach((trig) => {
+            pipelineData.triggers?.forEach((trig) => {
                 block = importBlock(`${pipelineData.id}/${trig.id}`, trig.name, 'ibm_cd_tekton_pipeline_trigger');
                 importBlocks.push(block);
 
@@ -140,7 +140,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
                 const triggerResName = block.name;
 
-                trig.properties.forEach((trigProp) => {
+                trig.properties?.forEach((trigProp) => {
                     block = importBlock(`${pipelineData.id}/${trig.id}/${trigProp.name}`, trigProp.name, 'ibm_cd_tekton_pipeline_trigger_property');
                     importBlocks.push(block);
 
