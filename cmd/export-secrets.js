@@ -104,7 +104,7 @@ async function main(options) {
                         const pipelineBaseUrl = `https://${CLOUD_PLATFORM}/devops/pipelines/tekton/${tool.id}`
                         const pipelineData = await getPipelineData(bearer, tool.id, region);
 
-                        pipelineData?.properties.forEach((prop) => {
+                        pipelineData?.properties?.forEach((prop) => {
                             if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0) {
                                 pipelineResults.push({
                                     'Pipeline ID': pipelineData.id,
