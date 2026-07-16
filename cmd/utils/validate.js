@@ -279,9 +279,9 @@ async function validateTools(token, tcId, region, skipPrompt) {
         logger.table(toolsWithHashedParams);
     }
 
-    if (!skipPrompt && (classicPipelines.length > 0 || hasInvalidConfig))
+    if (!skipPrompt && (classicPipelines.length > 0 || hasInvalidConfig)) {
         await promptUserConfirmation('Caution: The above tool(s) will not be properly configured post migration. Do you want to proceed?', 'yes', 'Toolchain migration cancelled.');
-
+    }
     return allTools.tools;
 }
 
