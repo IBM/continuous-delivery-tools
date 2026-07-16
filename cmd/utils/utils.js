@@ -10,6 +10,16 @@
 import * as readline from 'node:readline/promises';
 import { randomInt } from 'node:crypto';
 
+// Drain stdout before opening a readline prompt. When ora or console.log have
+// queued writes to a TTY, readline's cursor-management sequences can overwrite
+// the last printed lines if we don't wait for the stream to flush first.
+function drainStdout() {
+    return new Promise(resolve => {
+        if (!process.stdout.writableNeedDrain) return resolve();
+        process.stdout.once('drain', resolve);
+    });
+}
+
 import { logger } from './logger.js';
 import { VAULT_REGEX } from '../../config.js';
 
@@ -22,6 +32,7 @@ export function parseEnvVar(name) {
 };
 
 export async function promptUserYesNo(question) {
+    await drainStdout();
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout
@@ -48,6 +59,7 @@ export async function promptUserYesNo(question) {
 }
 
 export async function promptUserConfirmation(question, expectedAns, exitMsg) {
+    await drainStdout();
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout
@@ -70,6 +82,7 @@ export async function promptUserConfirmation(question, expectedAns, exitMsg) {
 }
 
 export async function promptUserInput(question, initialInput, validationFn) {
+    await drainStdout();
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
