@@ -239,10 +239,14 @@ async function validateTools(token, tcId, region, skipPrompt) {
                 });
             }
             if (secrets.length > 0) {
+                const MAX_SECRETS_DISPLAY = 10;
+                const displaySecrets = secrets.length > MAX_SECRETS_DISPLAY
+                    ? [...secrets.slice(0, MAX_SECRETS_DISPLAY), `... and ${secrets.length - MAX_SECRETS_DISPLAY} more`]
+                    : secrets;
                 toolsWithHashedParams.push({
                     tool_name: toolName,
                     type: tool.tool_type_id,
-                    secret_params: secrets,
+                    secret_params: displaySecrets,
                     url: toolUrl
                 });
             }
