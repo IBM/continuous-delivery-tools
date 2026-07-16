@@ -218,16 +218,16 @@ async function validateTools(token, tcId, region, skipPrompt) {
             if (tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'tekton') {   // Check for secrets in Tekton pipeline
                 const pipelineData = await getPipelineData(token, tool.id, region);
 
-                pipelineData.properties.forEach((prop) => {
-                    if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0)
+                pipelineData.properties?.forEach((prop) => {
+                    if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value?.length > 0)
                         secrets.push(['properties', prop.name].join('.').replace(/\s+/g, '+'));
                 });
 
-                pipelineData.triggers.forEach((trigger) => {
+                pipelineData.triggers?.forEach((trigger) => {
                     if ((trigger?.secret?.type === 'token_matches' || trigger?.secret?.type === 'digest_matches') && !isSecretReference(trigger.secret?.value) && trigger.secret?.value?.length > 0)
                         secrets.push([trigger.name, trigger.secret.key_name].join('.').replace(/\s+/g, '+'));
                     trigger.properties?.forEach((prop) => {
-                        if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value.length > 0)
+                        if (prop.type === 'secure' && !isSecretReference(prop.value) && prop.value?.length > 0)
                             secrets.push([trigger.name, 'properties', prop.name].join('.').replace(/\s+/g, '+'));
                     });
                 });
