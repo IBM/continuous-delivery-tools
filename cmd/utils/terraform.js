@@ -255,8 +255,7 @@ async function setupTerraformFiles(config) {
         }
 
         if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_trigger') {
-            // by default, disable triggers
-            if (disableTriggers && newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
+            if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger']) {
                 for (const key of Object.keys(newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'])) {
                     // escape filter, which may contain reserved characters
                     const filterVal = newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['filter'];
@@ -265,7 +264,7 @@ async function setupTerraformFiles(config) {
                     }
 
                     // disable all triggers (timed, git, webhooks) except manual triggers
-                    if (newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['type'] != 'manual') {
+                    if (disableTriggers && newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['type'] != 'manual') {
                         newTfFileObj['resource']['ibm_cd_tekton_pipeline_trigger'][key]['enabled'] = false;
                     }
                 }
