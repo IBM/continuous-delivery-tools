@@ -30,12 +30,9 @@ const DOCS_URL = 'https://github.com/IBM/continuous-delivery-tools';
 const SOURCE_REGIONS = [
 	'au-syd',
 	'br-sao',
-	'ca-mon',
 	'ca-tor',
 	'eu-de',
-	'eu-es',
 	'eu-gb',
-	'jp-osa',
 	'jp-tok',
 	'us-east',
 	'us-south'
@@ -44,12 +41,9 @@ const SOURCE_REGIONS = [
 const TARGET_REGIONS = [
 	'au-syd',
 	'br-sao',
-	'ca-mon',
 	'ca-tor',
 	'eu-de',
-	'eu-es',
 	'eu-gb',
-	'jp-osa',
 	'jp-tok',
 	'us-east',
 	'us-south'
@@ -58,12 +52,9 @@ const TARGET_REGIONS = [
 const BROKER_REGIONS = [
   	'au-syd',
 	'br-sao',
-	'ca-mon',
 	'ca-tor',
 	'eu-de',
-	'eu-es',
 	'eu-gb',
-	'jp-osa',
 	'jp-tok',
 	'us-east',
 	'us-south'
