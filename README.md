@@ -81,8 +81,8 @@ Examples:
       Copy all the Git Repos and Issue Tracking projects in the group "mygroup" from the Toronto region to the Dallas, with the same group name.
 
 Options:
-  -s, --source-region <region>  The source region from which to copy the project group (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
-  -d, --dest-region <region>    The destination region to copy the projects to (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
+  -s, --source-region <region>  The source region from which to copy the project group (choices: "au-syd", "br-sao", "ca-tor", "eu-de", "eu-gb", "jp-tok", "us-east", "us-south")
+  -d, --dest-region <region>    The destination region to copy the projects to (choices: "au-syd", "br-sao", "ca-tor", "eu-de", "eu-gb", "jp-tok", "us-east", "us-south")
   --st, --source-token <token>  A Git Repos and Issue Tracking personal access token from the source region. The api scope is required on the token.
   --dt, --dest-token <token>    A Git Repos and Issue Tracking personal access token from the target region. The api scope is required on the token.
   -g, --group-id <id>           The id of the group to copy from the source region (e.g. "1796019"), or the group name (e.g. "mygroup") for top-level groups. For sub-groups, a path
@@ -148,7 +148,7 @@ Environment Variables:
 
 Basic options:
   -c, --toolchain-crn <crn>              The CRN of the source toolchain to copy
-  -r, --region <region>                  The destination region of the copied toolchain (choices: "au-syd", "br-sao", "ca-mon", "ca-tor", "eu-de", "eu-es", "eu-gb", "jp-osa", "jp-tok", "us-east", "us-south")
+  -r, --region <region>                  The destination region of the copied toolchain (choices: "au-syd", "br-sao", "ca-tor", "eu-de", "eu-gb", "jp-tok", "us-east", "us-south")
   -a, --apikey <api_key>                 API key used to authenticate. Must be a user API key, with IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group
   -n, --name <name>                      (Optional) The name of the copied toolchain (default: same name as original)
   -g, --resource-group <resource_group>  (Optional) The name or ID of destination resource group of the copied toolchain (default: same resource group as original)

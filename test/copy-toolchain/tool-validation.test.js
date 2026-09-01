@@ -33,7 +33,7 @@ describe('copy-toolchain: Test tool validation', function () {
     const testCases = [
         {
             name: 'Misconfigured tool identified',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['1pl-ghe-cd'].crn, '-r', TARGET_REGIONS[10]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['1pl-ghe-cd'].crn, '-r', TARGET_REGIONS[7]],
             expected: /slack[\s\S]*?misconfigured/,
             options: {
                 exitCondition: 'Caution: The above tool(s) will not be properly configured post migration. Do you want to proceed?',
@@ -45,7 +45,7 @@ describe('copy-toolchain: Test tool validation', function () {
         },
         {
             name: 'Tools with plain text secrets identified',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['1pl-ghe-cd'].crn, '-r', TARGET_REGIONS[10]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['1pl-ghe-cd'].crn, '-r', TARGET_REGIONS[7]],
             expected: null,
             options: {
                 exitCondition: 'Caution: The above tool(s) will not be properly configured post migration. Do you want to proceed?',
@@ -62,7 +62,7 @@ describe('copy-toolchain: Test tool validation', function () {
         },
         {
             name: 'Classic pipelines are identified',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['misconfigured'].crn, '-r', TARGET_REGIONS[10]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['misconfigured'].crn, '-r', TARGET_REGIONS[0]],
             expected: /Warning! Classic pipelines are currently not supported in migration/,
             options: {
                 exitCondition: 'Caution: The above tool(s) will not be properly configured post migration. Do you want to proceed?',
@@ -74,7 +74,7 @@ describe('copy-toolchain: Test tool validation', function () {
         },
         {
             name: 'Git tools using PAT are identified',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['misconfigured'].crn, '-r', TARGET_REGIONS[10]],
+            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['misconfigured'].crn, '-r', TARGET_REGIONS[0]],
             expected: null,
             options: {
                 exitCondition: 'Caution: The above tool(s) will not be properly configured post migration. Do you want to proceed?',
