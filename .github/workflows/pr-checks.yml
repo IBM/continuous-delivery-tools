@@ -42,7 +42,8 @@ jobs:
       - name: Unit-Tests
         run: npm run test
         env:
-          TEST_DEBUG_MODE: ${{ vars.TEST_DEBUG_MODE }}
+          DEBUG_MODE: true
+          TEST_DEBUG_MODE: true
           TEST_TEMP_DIR: ${{ vars.TEST_TEMP_DIR }}
           TEST_LOG_DIR: ${{ vars.TEST_LOG_DIR }}
           IBMCLOUD_API_KEY: ${{ secrets.IBMCLOUD_API_KEY }}
@@ -69,5 +70,7 @@ jobs:
             echo "--- Terraform directory: $terraform_dir ---"
             (cd "$terraform_dir" && terraform providers) || true
           done < <(find "$temp_dir" -type f -name '*.tf' -exec dirname {} \; | sort -u)
+          echo "Application Terraform debug log entries:"
+          grep -RInE '\[Terraform debug\]|unavailable provider|failed to read provider configuration schema' "$temp_dir" --include='*.log' || true
         env:
           TEST_TEMP_DIR: ${{ vars.TEST_TEMP_DIR }}

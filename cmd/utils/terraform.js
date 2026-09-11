@@ -435,16 +435,58 @@ async function setupTerraformFiles(config) {
     return Promise.all(promises);
 }
 
+async function logTerraformDebug(dir, stage) {
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true }) : [];
+    const terraformFiles = files.filter((file) => typeof file === 'string' &&
+        (file.endsWith('.tf') || file.endsWith('.tfstate') || file.endsWith('.tfstate.backup') || file.endsWith('.terraform.lock.hcl')));
+
+    logger.dump(`\n[Terraform debug] ${stage}\n`);
+    logger.dump(`Working directory: ${dir}\n`);
+    logger.dump(`Terraform files: ${JSON.stringify(terraformFiles)}\n`);
+
+    for (const file of terraformFiles) {
+        const filePath = `${dir}/${file}`;
+        try {
+            const contents = fs.readFileSync(filePath, 'utf8');
+            const providerLines = contents.split('\n').filter((line) =>
+                /provider|IBM-Cloud\/ibm|hashicorp\/ibm|registry\.terraform\.io/.test(line));
+            if (providerLines.length > 0) logger.dump(`${file}:\n${providerLines.join('\n')}\n`);
+        } catch {
+            // The file may be removed while Terraform is running.
+        }
+    }
+
+    try {
+        logger.dump(`terraform version:\n${await execPromise('terraform version', { cwd: dir })}\n`);
+    } catch (err) {
+        logger.dump(`terraform version failed: ${err.message}\n`);
+    }
+
+    try {
+        logger.dump(`terraform providers:\n${await execPromise('terraform providers', { cwd: dir })}\n`);
+    } catch (err) {
+        logger.dump(`terraform providers failed: ${err.message}\n`);
+    }
+}
+
 async function runTerraformInit(dir, verbosity) {
     logger.log('Running command \'terraform init\'', LOG_STAGES.tf);
+    await logTerraformDebug(dir, 'before init');
     const out = await execPromise('terraform init', { cwd: dir });
     if (verbosity >= 2) logger.print(out, '\n');
+    await logTerraformDebug(dir, 'after init');
     logger.log('Command \'terraform init\' completed', LOG_STAGES.tf);
     return out;
 }
 
 async function runTerraformPlanGenerate(dir, fileName) {
-    return await execPromise(`terraform plan -generate-config-out="${fileName}"`, { cwd: dir });
+    await logTerraformDebug(dir, 'before plan -generate-config-out');
+    try {
+        return await execPromise(`terraform plan -generate-config-out="${fileName}"`, { cwd: dir });
+    } catch (err) {
+        await logTerraformDebug(dir, 'after failed plan -generate-config-out');
+        throw err;
+    }
 }
 
 // primarily used to get number of resources to be used
