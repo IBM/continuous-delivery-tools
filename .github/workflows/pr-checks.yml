@@ -21,6 +21,20 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "lts/*"
+      - name: Debug Terraform environment
+        run: |
+          set -u
+          echo "Runner: ${RUNNER_OS}"
+          echo "Image: ${ImageOS:-unknown}"
+          echo "Architecture: ${RUNNER_ARCH}"
+          echo "Working directory: ${GITHUB_WORKSPACE}"
+          echo "PATH: ${PATH}"
+          echo "Terraform executable: $(command -v terraform || echo not-found)"
+          terraform version || true
+          echo "Node.js: $(node --version)"
+          echo "npm: $(npm --version)"
+          echo "Terraform environment variable names:"
+          env | awk -F= '/^TF_/ { print $1 }' | sort || true
       - name: Install dependencies
         run: npm clean-install
       - name: Lint code
@@ -34,3 +48,26 @@ jobs:
           IBMCLOUD_API_KEY: ${{ secrets.IBMCLOUD_API_KEY }}
           LOG_DUMP: ${{ vars.LOG_DUMP }}
           DISABLE_SPINNER: ${{ vars.DISABLE_SPINNER }}
+      - name: Collect Terraform diagnostics
+        if: always()
+        run: |
+          set -u
+          temp_dir="${TEST_TEMP_DIR:-}"
+          if [ -z "$temp_dir" ]; then
+            echo "TEST_TEMP_DIR is not set"
+            exit 0
+          fi
+          if [ ! -d "$temp_dir" ]; then
+            echo "Terraform test directory does not exist: $temp_dir"
+            exit 0
+          fi
+          echo "Terraform-related files under TEST_TEMP_DIR:"
+          find "$temp_dir" \( -name '*.tf' -o -name '*.tfstate*' -o -name '.terraform.lock.hcl' \) -print
+          echo "Provider source references:"
+          grep -RInE 'hashicorp/ibm|IBM-Cloud/ibm|registry.terraform.io' "$temp_dir" --include='*.tf' --include='*.tfstate*' --include='.terraform.lock.hcl' || true
+          while IFS= read -r terraform_dir; do
+            echo "--- Terraform directory: $terraform_dir ---"
+            (cd "$terraform_dir" && terraform providers) || true
+          done < <(find "$temp_dir" -type f -name '*.tf' -exec dirname {} \; | sort -u)
+        env:
+          TEST_TEMP_DIR: ${{ vars.TEST_TEMP_DIR }}
