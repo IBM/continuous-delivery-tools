@@ -13,7 +13,7 @@ import { parse as tfToJson } from '@cdktf/hcl2json'
 import { jsonToTf } from 'json-to-tf';
 
 import { getPipelineData, getToolchainTools } from './requests.js';
-import { runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
+import { initProviderFile, runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
 import { escapeReservedChars, getRandChars, isSecretReference, normalizeName } from './utils.js';
 import { logger } from './logger.js';
 
@@ -157,6 +157,9 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     importBlocksToTf(importBlocks, dir);
 
     if (!fs.existsSync(`${dir}/generated`)) fs.mkdirSync(`${dir}/generated`);
+    // Terraform validates the generated configuration as a separate configuration
+    // and otherwise defaults its resources to registry.terraform.io/hashicorp/ibm.
+    await initProviderFile(region, `${dir}/generated`);
 
     // STEP 2/2: run terraform import and post-processing
     setTerraformEnv(apiKey, verbosity);
