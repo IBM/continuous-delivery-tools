@@ -387,8 +387,9 @@ function importBlocksToTf(blocks, dir) {
 
     blocks.forEach((block) => {
         const template = `import {
-  id = "${block.id}"
-  to = ${block.to}
+  id       = "${block.id}"
+  to       = ${block.to}
+  provider = ibm
 }\n\n`;
         fileContent += template;
     });
