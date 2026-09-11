@@ -34,7 +34,10 @@ async function execPromise(command, options) {
         const { stdout, _ } = await exec(command, {...options, maxBuffer: 10 * 1024 * 1024}); // set max buffer to 10MB
         return stdout.trim();
     } catch (err) {
-        throw new Error(`Command failed: ${command} \n${err.stderr || err.stdout}`);
+        const stderr = err.stderr?.trim() || '';
+        const stdout = err.stdout?.trim() || '';
+        const workingDirectory = options?.cwd ? `\nWorking directory: ${options.cwd}` : '';
+        throw new Error(`Command failed: ${command}${workingDirectory}\n${stderr || stdout || err.message}`);
     }
 }
 
@@ -472,11 +475,17 @@ async function logTerraformDebug(dir, stage) {
 async function runTerraformInit(dir, verbosity) {
     logger.log('Running command \'terraform init\'', LOG_STAGES.tf);
     await logTerraformDebug(dir, 'before init');
-    const out = await execPromise('terraform init', { cwd: dir });
-    if (verbosity >= 2) logger.print(out, '\n');
-    await logTerraformDebug(dir, 'after init');
-    logger.log('Command \'terraform init\' completed', LOG_STAGES.tf);
-    return out;
+    try {
+        const out = await execPromise('terraform init', { cwd: dir });
+        if (verbosity >= 2) logger.print(out, '\n');
+        await logTerraformDebug(dir, 'after init');
+        logger.log('Command \'terraform init\' completed', LOG_STAGES.tf);
+        return out;
+    } catch (err) {
+        logger.error(`[DEBUG_MODE=true] Terraform init failed in "${dir}":\n${err.message}`, LOG_STAGES.tf);
+        await logTerraformDebug(dir, 'after failed init');
+        throw err;
+    }
 }
 
 async function runTerraformPlanGenerate(dir, fileName) {
@@ -484,6 +493,7 @@ async function runTerraformPlanGenerate(dir, fileName) {
     try {
         return await execPromise(`terraform plan -generate-config-out="${fileName}"`, { cwd: dir });
     } catch (err) {
+        logger.error(`[DEBUG_MODE=true] Terraform plan failed in "${dir}":\n${err.message}`, LOG_STAGES.tf);
         await logTerraformDebug(dir, 'after failed plan -generate-config-out');
         throw err;
     }

@@ -163,8 +163,14 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     let draftErrors = '';
     await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch((err) => {
-        if (DEBUG_MODE) logger.dump(`\n[DEBUG_MODE=true] Draft errors: ${err}`);
         draftErrors = err;
+        if (DEBUG_MODE) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            const debugMessage = `[DEBUG_MODE=true] Terraform draft generation failed in "${dir}":\n${errorMessage}`;
+            logger.dump(`\n${debugMessage}\n`);
+            logger.error(debugMessage, 'IMPORT');
+            console.error(debugMessage);
+        }
     });
     // above is a temp fix for errors before post-processing
     // "Insufficient initialization blocks" error is expected
