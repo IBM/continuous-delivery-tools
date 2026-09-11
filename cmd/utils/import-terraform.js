@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -13,7 +13,7 @@ import { parse as tfToJson } from '@cdktf/hcl2json'
 import { jsonToTf } from 'json-to-tf';
 
 import { getPipelineData, getToolchainTools } from './requests.js';
-import { runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
+import { initProviderFile, runTerraformPlanGenerate, setTerraformEnv } from './terraform.js';
 import { escapeReservedChars, getRandChars, isSecretReference, normalizeName } from './utils.js';
 import { logger } from './logger.js';
 
@@ -157,6 +157,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     importBlocksToTf(importBlocks, dir);
 
     if (!fs.existsSync(`${dir}/generated`)) fs.mkdirSync(`${dir}/generated`);
+    await initProviderFile(region, `${dir}/generated`);
 
     // STEP 2/2: run terraform import and post-processing
     setTerraformEnv(apiKey, verbosity);
@@ -381,8 +382,9 @@ function importBlocksToTf(blocks, dir) {
 
     blocks.forEach((block) => {
         const template = `import {
-  id = "${block.id}"
-  to = ${block.to}
+  id       = "${block.id}"
+  to       = ${block.to}
+  provider = ibm
 }\n\n`;
         fileContent += template;
     });
