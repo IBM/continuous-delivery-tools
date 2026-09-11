@@ -443,9 +443,8 @@ async function logTerraformDebug(dir, stage) {
     const terraformFiles = files.filter((file) => typeof file === 'string' &&
         (file.endsWith('.tf') || file.endsWith('.tfstate') || file.endsWith('.tfstate.backup') || file.endsWith('.terraform.lock.hcl')));
 
-    logger.dump(`\n[Terraform debug] ${stage}\n`);
-    logger.dump(`Working directory: ${dir}\n`);
-    logger.dump(`Terraform files: ${JSON.stringify(terraformFiles)}\n`);
+    const debugOutput = [`[Terraform debug] ${stage}`, `Working directory: ${dir}`, `Terraform files: ${JSON.stringify(terraformFiles)}`];
+    logger.dump(`\n${debugOutput.join('\n')}\n`);
 
     for (const file of terraformFiles) {
         const filePath = `${dir}/${file}`;
@@ -453,7 +452,11 @@ async function logTerraformDebug(dir, stage) {
             const contents = fs.readFileSync(filePath, 'utf8');
             const providerLines = contents.split('\n').filter((line) =>
                 /provider|IBM-Cloud\/ibm|hashicorp\/ibm|registry\.terraform\.io/.test(line));
-            if (providerLines.length > 0) logger.dump(`${file}:\n${providerLines.join('\n')}\n`);
+            if (providerLines.length > 0) {
+                const fileOutput = `${file}:\n${providerLines.join('\n')}`;
+                logger.dump(`${fileOutput}\n`);
+                if (file === 'provider.tf' || file === 'import.tf') debugOutput.push(fileOutput);
+            }
         } catch {
             // The file may be removed while Terraform is running.
         }
@@ -466,10 +469,14 @@ async function logTerraformDebug(dir, stage) {
     }
 
     try {
-        logger.dump(`terraform providers:\n${await execPromise('terraform providers', { cwd: dir })}\n`);
+        debugOutput.push(`terraform providers:\n${await execPromise('terraform providers', { cwd: dir })}`);
     } catch (err) {
-        logger.dump(`terraform providers failed: ${err.message}\n`);
+        debugOutput.push(`terraform providers failed: ${err.message}`);
     }
+
+    const output = `${debugOutput.join('\n')}\n`;
+    logger.dump(output);
+    if (stage.includes('failed')) console.error(output);
 }
 
 async function runTerraformInit(dir, verbosity) {
