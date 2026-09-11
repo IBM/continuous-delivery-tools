@@ -164,6 +164,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
 
     let draftErrors = '';
     await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch((err) => {
+        if (DEBUG_MODE) logger.dump(`\n[DEBUG_MODE=true] Draft errors: ${err}`);
         draftErrors = err;
     });
     // above is a temp fix for errors before post-processing
