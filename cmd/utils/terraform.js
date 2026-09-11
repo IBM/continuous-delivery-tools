@@ -34,10 +34,7 @@ async function execPromise(command, options) {
         const { stdout, _ } = await exec(command, {...options, maxBuffer: 10 * 1024 * 1024}); // set max buffer to 10MB
         return stdout.trim();
     } catch (err) {
-        const stderr = err.stderr?.trim() || '';
-        const stdout = err.stdout?.trim() || '';
-        const workingDirectory = options?.cwd ? `\nWorking directory: ${options.cwd}` : '';
-        throw new Error(`Command failed: ${command}${workingDirectory}\n${stderr || stdout || err.message}`);
+        throw new Error(`Command failed: ${command} \n${err.stderr || err.stdout}`);
     }
 }
 
@@ -438,72 +435,16 @@ async function setupTerraformFiles(config) {
     return Promise.all(promises);
 }
 
-async function logTerraformDebug(dir, stage) {
-    const files = fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true }) : [];
-    const terraformFiles = files.filter((file) => typeof file === 'string' &&
-        (file.endsWith('.tf') || file.endsWith('.tfstate') || file.endsWith('.tfstate.backup') || file.endsWith('.terraform.lock.hcl')));
-
-    const debugOutput = [`[Terraform debug] ${stage}`, `Working directory: ${dir}`, `Terraform files: ${JSON.stringify(terraformFiles)}`];
-    logger.dump(`\n${debugOutput.join('\n')}\n`);
-
-    for (const file of terraformFiles) {
-        const filePath = `${dir}/${file}`;
-        try {
-            const contents = fs.readFileSync(filePath, 'utf8');
-            const providerLines = contents.split('\n').filter((line) =>
-                /provider|IBM-Cloud\/ibm|hashicorp\/ibm|registry\.terraform\.io/.test(line));
-            if (providerLines.length > 0) {
-                const fileOutput = `${file}:\n${providerLines.join('\n')}`;
-                logger.dump(`${fileOutput}\n`);
-                if (file === 'provider.tf' || file === 'import.tf') debugOutput.push(fileOutput);
-            }
-        } catch {
-            // The file may be removed while Terraform is running.
-        }
-    }
-
-    try {
-        logger.dump(`terraform version:\n${await execPromise('terraform version', { cwd: dir })}\n`);
-    } catch (err) {
-        logger.dump(`terraform version failed: ${err.message}\n`);
-    }
-
-    try {
-        debugOutput.push(`terraform providers:\n${await execPromise('terraform providers', { cwd: dir })}`);
-    } catch (err) {
-        debugOutput.push(`terraform providers failed: ${err.message}`);
-    }
-
-    const output = `${debugOutput.join('\n')}\n`;
-    logger.dump(output);
-    if (stage.includes('failed')) console.error(output);
-}
-
 async function runTerraformInit(dir, verbosity) {
     logger.log('Running command \'terraform init\'', LOG_STAGES.tf);
-    await logTerraformDebug(dir, 'before init');
-    try {
-        const out = await execPromise('terraform init', { cwd: dir });
-        if (verbosity >= 2) logger.print(out, '\n');
-        await logTerraformDebug(dir, 'after init');
-        logger.log('Command \'terraform init\' completed', LOG_STAGES.tf);
-        return out;
-    } catch (err) {
-        logger.error(`[DEBUG_MODE=true] Terraform init failed in "${dir}":\n${err.message}`, LOG_STAGES.tf);
-        await logTerraformDebug(dir, 'after failed init');
-        throw err;
-    }
+    const out = await execPromise('terraform init', { cwd: dir });
+    if (verbosity >= 2) logger.print(out, '\n');
+    logger.log('Command \'terraform init\' completed', LOG_STAGES.tf);
+    return out;
 }
 
 async function runTerraformPlanGenerate(dir, fileName) {
-    await logTerraformDebug(dir, 'before plan -generate-config-out');
-    try {
-        return await execPromise(`terraform plan -generate-config-out="${fileName}"`, { cwd: dir });
-    } catch (err) {
-        logger.error(`[DEBUG_MODE=true] Terraform plan failed in "${dir}":\n${err.message}`, LOG_STAGES.tf);
-        await logTerraformDebug(dir, 'after failed plan -generate-config-out');
-        throw err;
-    }
+    return await execPromise(`terraform plan -generate-config-out="${fileName}"`, { cwd: dir });
 }
 
 // primarily used to get number of resources to be used

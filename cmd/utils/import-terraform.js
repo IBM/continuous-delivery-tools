@@ -157,8 +157,6 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     importBlocksToTf(importBlocks, dir);
 
     if (!fs.existsSync(`${dir}/generated`)) fs.mkdirSync(`${dir}/generated`);
-    // Terraform validates the generated configuration as a separate configuration
-    // and otherwise defaults its resources to registry.terraform.io/hashicorp/ibm.
     await initProviderFile(region, `${dir}/generated`);
 
     // STEP 2/2: run terraform import and post-processing
@@ -167,13 +165,6 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     let draftErrors = '';
     await runTerraformPlanGenerate(dir, 'generated/draft.tf').catch((err) => {
         draftErrors = err;
-        if (DEBUG_MODE) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            const debugMessage = `[DEBUG_MODE=true] Terraform draft generation failed in "${dir}":\n${errorMessage}`;
-            logger.dump(`\n${debugMessage}\n`);
-            logger.error(debugMessage, 'IMPORT');
-            console.error(debugMessage);
-        }
     });
     // above is a temp fix for errors before post-processing
     // "Insufficient initialization blocks" error is expected
