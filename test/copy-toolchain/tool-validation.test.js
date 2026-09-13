@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -25,11 +25,12 @@ const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
 
 const toolchainsToDelete = new Map();
-after(async () => await deleteCreatedToolchains(toolchainsToDelete));
 
 describe('copy-toolchain: Test tool validation', function () {
     this.timeout('300s');
     this.command = COMMAND;
+
+    after(async () => await deleteCreatedToolchains(toolchainsToDelete));
     const testCases = [
         {
             name: 'Misconfigured tool identified',
