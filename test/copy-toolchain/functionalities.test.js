@@ -29,11 +29,12 @@ const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'copy-toolchain';
 
 const toolchainsToDelete = new Map();
-after(async () => await deleteCreatedToolchains(toolchainsToDelete));
 
 describe('copy-toolchain: Test functionalities', function () {
     this.timeout('300s');
     this.command = COMMAND;
+
+    after(async () => await deleteCreatedToolchains(toolchainsToDelete));
     const testCases = [
         {
             name: 'Terraform Version Verification',
