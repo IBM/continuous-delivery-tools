@@ -361,7 +361,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     // remove draft
     if (fs.existsSync(`${dir}/generated/draft.tf`)) fs.rmSync(`${dir}/generated/draft.tf`, { recursive: true });
 
-    return [toolchainResName, nonSecretRefs, s2sAuthTools];
+    return [toolchainResName, nonSecretRefs, s2sAuthTools, importBlocks];
 }
 
 // objects have two keys, "id" and "to"

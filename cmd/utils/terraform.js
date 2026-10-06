@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -73,7 +73,7 @@ async function setupTerraformFiles(config) {
         auth: { token },
         source: { srcRegion, srcToolchainId },
         target: { targetRegion, targetRgId, targetToolchainName, targetTag },
-        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation },
+        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation, preserveDescription },
         paths: { tempDir, outputDir },
         additional: { gritMapping, moreTfResources, timeSuffix }
     } = config;
@@ -240,18 +240,20 @@ async function setupTerraformFiles(config) {
             if (targetToolchainName) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] = targetToolchainName;
             if (targetRgId) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['resource_group_id'] = targetRgId;
 
-            // set new description
-            const oldDesc = newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'];
-            let newDesc = `Copied from https://cloud.ibm.com/devops/toolchains/${srcToolchainId}?env_id=ibm:yp:${srcRegion}` +
-                (oldDesc && oldDesc != newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] ?
-                    `; Original description: ${oldDesc}`
-                    : '')
-            // if greater than 500 chars, truncate to fit within 500 chars and add a marker`
-            if (newDesc.length > 500) {
-                const marker = ' (truncated)';
-                newDesc = newDesc.substring(0, 500 - marker.length) + marker;
+            if (!preserveDescription) {
+                // set new description
+                const oldDesc = newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'];
+                let newDesc = `Copied from https://cloud.ibm.com/devops/toolchains/${srcToolchainId}?env_id=ibm:yp:${srcRegion}` +
+                    (oldDesc && oldDesc != newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] ?
+                        `; Original description: ${oldDesc}`
+                        : '')
+                // if greater than 500 chars, truncate to fit within 500 chars and add a marker`
+                if (newDesc.length > 500) {
+                    const marker = ' (truncated)';
+                    newDesc = newDesc.substring(0, 500 - marker.length) + marker;
+                }
+                newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'] = newDesc;
             }
-            newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'] = newDesc;
         }
 
         if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_trigger') {
@@ -571,6 +573,47 @@ function addS2sScriptToToolchainTf(str, timeSuffix) {
     }
 }
 
+async function runTerraformImport(importBlocks, outputDir, verbosity) {
+    for (const block of importBlocks) {
+        logger.log(`Running command 'terraform import' for ${block.to}`, LOG_STAGES.tf);
+
+        await new Promise((resolve, reject) => {
+            const child = child_process.spawn(`terraform import "${block.to}" "${block.id}"`, {
+                cwd: outputDir,
+                stdio: ['inherit', 'pipe', 'pipe'],
+                shell: true,
+                env: process.env,
+            });
+
+            child.stdout.on('data', (chunk) => {
+                const text = chunk.toString();
+                if (verbosity >= 2) {
+                    process.stdout.write(text);
+                    logger.dump(text);
+                }
+            });
+
+            child.stderr.on('data', (chunk) => {
+                const text = chunk.toString();
+                if (verbosity >= 0) { // errors should still surface in quiet mode
+                    process.stderr.write(text);
+                    logger.dump(text);
+                }
+            });
+
+            child.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`terraform import failed for ${block.to} with code ${code}`));
+                }
+            });
+        });
+
+        logger.log(`Command 'terraform import' completed for ${block.to}`, LOG_STAGES.tf);
+    }
+}
+
 export {
     setTerraformEnv,
     initProviderFile,
@@ -580,5 +623,6 @@ export {
     getNumResourcesPlanned,
     runTerraformApply,
     getNewToolchainId,
-    getNumResourcesCreated
+    getNumResourcesCreated,
+    runTerraformImport
 }
