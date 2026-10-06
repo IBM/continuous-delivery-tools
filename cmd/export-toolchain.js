@@ -18,8 +18,8 @@ import { Command } from 'commander';
 import { parseEnvVar } from './utils/utils.js';
 import { logger, LOG_STAGES } from './utils/logger.js';
 import { initProviderFile, setupTerraformFiles, runTerraformInit, runTerraformImport, setTerraformEnv } from './utils/terraform.js';
-import { getBearerToken, getToolchain } from './utils/requests.js';
-import { validatePrereqsVersions, validateToolchainId, validateTools } from './utils/validate.js';
+import { getBearerToken, getToolchain, getToolchainTools } from './utils/requests.js';
+import { validatePrereqsVersions, validateToolchainId } from './utils/validate.js';
 import { importTerraform } from './utils/import-terraform.js';
 
 import { EXPORT_TOOLCHAIN_DESC, SOURCE_REGIONS } from '../config.js';
@@ -112,26 +112,41 @@ async function main(options) {
 			if (files.length > 0) throw Error(`Output directory already has ${files.length} '.tf' files, please specify a different output directory`);
 		}
 
-		const allTools = await logger.withSpinner(validateTools,
-			'Validating Toolchain Tool(s)...',
-			'Toolchain tool(s) validated',
+		const { tools: allTools } = await logger.withSpinner(getToolchainTools,
+			'Fetching toolchain tools...',
+			'Toolchain tool(s) fetched',
 			LOG_STAGES.setup,
 			bearer,
 			sourceToolchainId,
-			sourceRegion,
-			skipUserConfirmation
+			sourceRegion
 		);
 
 		// collect instances of legacy GHE tool integrations
 		moreTfResources['github_integrated'] = [];
+		const gheTools = [];
+		const classicPipelines = [];
+		const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
+
 		allTools.forEach((t) => {
+			const toolName = (t.name || t.parameters?.name || t.parameters?.label || '').replace(/\s+/g, '+');
+			const toolUrl = `https://${CLOUD_PLATFORM}/devops/toolchains/${t.toolchain_id}/configure/${t.id}?env_id=ibm:yp:${sourceRegion}`;
 			if (t.tool_type_id === 'github_integrated') {
 				moreTfResources['github_integrated'].push(t);
+				gheTools.push({ tool_name: toolName, type: t.tool_type_id, url: toolUrl });
+			}
+			if (t.tool_type_id === 'pipeline' && t.parameters?.type === 'classic') {
+				classicPipelines.push({ tool_name: toolName, type: 'classic pipeline', url: toolUrl });
 			}
 		});
 
-		if (moreTfResources['github_integrated'].length > 0) {
-			logger.warn(`Warning! The following legacy GHE integration(s) will automatically be converted to equivalent GitHub integrations in the exported Terraform files.`, LOG_STAGES.setup, true);
+		if (classicPipelines.length > 0) {
+			logger.warn('Warning! Classic pipelines are currently not supported and will not be exported:\n', LOG_STAGES.setup, true);
+			logger.table(classicPipelines);
+		}
+
+		if (gheTools.length > 0) {
+			logger.warn('Note: The following legacy GitHub Enterprise integration(s), which are not supported in Terraform, will automatically be converted to equivalent GitHub integrations in the exported Terraform files. When re-applying the Terraform, new integrations will be created alongside the original, and the original legacy integrations can then be deleted.\n', LOG_STAGES.setup, true);
+			logger.table(gheTools);
 		}
 
 		logger.info('Arguments and required packages verified, proceeding with exporting toolchain...', LOG_STAGES.setup);
@@ -151,7 +166,6 @@ async function main(options) {
 	}
 
 	// Import toolchain into Terraform state
-	let nonSecretRefs;
 	let importBlocks;
 
 	try {
@@ -163,20 +177,15 @@ async function main(options) {
 			await initProviderFile(sourceRegion, TEMP_DIR);
 			await runTerraformInit(TEMP_DIR, verbosity);
 
-			[, nonSecretRefs, , importBlocks] = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, sourceToolchainData['name'], TEMP_DIR, isCompact, verbosity);
+			[, , , importBlocks] = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, sourceToolchainData['name'], TEMP_DIR, isCompact, verbosity);
 		};
 
 		await logger.withSpinner(
 			importTerraformWrapper,
 			'Importing toolchain...',
-			'Toolchain successfully imported',
+			'Toolchain successfully imported into Terraform',
 			LOG_STAGES.import
 		);
-
-		if (nonSecretRefs.length > 0) {
-			logger.warn(`Warning! The following generated terraform resource contains hashed secret(s) that cannot be re-applied without providing the secret values:`, LOG_STAGES.setup, true);
-			logger.table(nonSecretRefs);
-		}
 
 	} catch (err) {
 		if (err.message && err.stack) {
