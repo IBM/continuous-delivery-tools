@@ -249,7 +249,6 @@ async function main(options) {
 
 		logger.info(`Toolchain "${sourceToolchainData['name']}" successfully exported.`, LOG_STAGES.info, true);
 		logger.info(`Output directory: ${outputDir}`, LOG_STAGES.info, true);
-		logger.info(`Use terraform plan / apply in ${outputDir} to manage changes.`, LOG_STAGES.info, true);
 	} catch (err) {
 		if (err.message && err.stack) {
 			const errMsg = verbosity > 1 ? err.stack : err.message;
