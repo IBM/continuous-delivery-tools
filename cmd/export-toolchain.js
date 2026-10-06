@@ -182,7 +182,7 @@ async function main(options) {
 
 		await logger.withSpinner(
 			importTerraformWrapper,
-			'Importing toolchain...',
+			'Importing toolchain into Terraform...',
 			'Toolchain successfully imported into Terraform',
 			LOG_STAGES.import
 		);
