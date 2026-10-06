@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -9,5 +9,6 @@
 
 import exportSecrets from './export-secrets.js';
 import copyToolchain from './copy-toolchain.js';
+import exportToolchain from './export-toolchain.js';
 import directTransfer from './direct-transfer.js';
-export { exportSecrets, copyToolchain, directTransfer };
+export { exportSecrets, copyToolchain, exportToolchain, directTransfer };

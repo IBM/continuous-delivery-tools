@@ -19,6 +19,16 @@ Examples:
 Environment Variables:
   IBMCLOUD_API_KEY                       API key used to authenticate. Must be a user API key, with IAM permission to read and create toolchains and service-to-service authorizations in source and target region / resource group`;
 
+const EXPORT_TOOLCHAIN_DESC = `Exports a toolchain, including tool integrations and Tekton pipelines, into Terraform (.tf) files.
+
+Examples:
+  export IBMCLOUD_API_KEY='...'
+  npx @ibm-cloud/cd-tools export-toolchain -c \${TOOLCHAIN_CRN}
+      Export a toolchain into .tf files
+
+Environment Variables:
+  IBMCLOUD_API_KEY                       API key used to authenticate. Must have IAM permission to read the toolchain.`;
+
 const COPY_PROJECT_GROUP_DESC = `Copies all Git Repos and Issue Tracking projects in a group to another region.
 
 Examples:
@@ -232,6 +242,7 @@ const VAULT_REGEX = [
 ];
 
 export {
+	EXPORT_TOOLCHAIN_DESC,
 	COPY_TOOLCHAIN_DESC,
 	COPY_PROJECT_GROUP_DESC,
 	DOCS_URL,
