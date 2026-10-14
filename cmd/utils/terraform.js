@@ -73,7 +73,7 @@ async function setupTerraformFiles(config) {
         auth: { token },
         source: { srcRegion, srcToolchainId },
         target: { targetRegion, targetRgId, targetToolchainName, targetTag },
-        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation, preserveDescription },
+        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation, preserveDescription, ignoreInitChanges },
         paths: { tempDir, outputDir },
         additional: { gritMapping, moreTfResources, timeSuffix }
     } = config;
@@ -416,8 +416,26 @@ async function setupTerraformFiles(config) {
             }
         }
 
+        // for export, add lifecycle ignore_changes for initialization so Terraform does not try to
+        // apply the write-once block against already-existing resources
+        if (ignoreInitChanges) {
+            const repoResourceTypes = [
+                'ibm_cd_toolchain_tool_hostedgit',
+                'ibm_cd_toolchain_tool_bitbucketgit',
+                'ibm_cd_toolchain_tool_gitlab',
+                'ibm_cd_toolchain_tool_githubconsolidated',
+            ];
+            for (const type of repoResourceTypes) {
+                if (newTfFileObj['resource'][type]) {
+                    for (const k of Object.keys(newTfFileObj['resource'][type])) {
+                        newTfFileObj['resource'][type][k]['lifecycle'] = [{ ignore_changes: ['initialization'] }];
+                    }
+                }
+            }
+        }
+
         const newTfFileObjStr = JSON.stringify(newTfFileObj);
-        let newTfFile = replaceDependsOn(jsonToTf(newTfFileObjStr));
+        let newTfFile = replaceIgnoreChanges(replaceDependsOn(jsonToTf(newTfFileObjStr)));
         if (includeS2S && (isCompact || resourceName === 'ibm_cd_toolchain')) {
             newTfFile = addS2sScriptToToolchainTf(newTfFile, timeSuffix);
         }
@@ -429,7 +447,7 @@ async function setupTerraformFiles(config) {
     if (hasGHE && !isCompact && !files.includes('cd_toolchain_tool_githubconsolidated.tf')) {
         const newTfFileObj = { 'resource': { ['ibm_cd_toolchain_tool_githubconsolidated']: newConvertedTf } };
         const newTfFileObjStr = JSON.stringify(newTfFileObj);
-        const newTfFile = jsonToTf(newTfFileObjStr);
+        const newTfFile = replaceIgnoreChanges(jsonToTf(newTfFileObjStr));
         const copyResourcesPromise = writeFilePromise(`${outputDir}/cd_toolchain_tool_githubconsolidated.tf`, newTfFile);
         promises.push(copyResourcesPromise);
     }
@@ -545,6 +563,22 @@ function replaceDependsOn(str) {
         }
     } catch (err) {
         logger.dump(`\n[Warning] Could not replace depends_on in terraform string: ${err.message}`);
+        return str;
+    }
+}
+
+// fix quoted attribute references in ignore_changes
+function replaceIgnoreChanges(str) {
+    try {
+        if (typeof str === 'string') {
+            const pattern = /^    ignore_changes = \[\n((?:      "[a-z0-9_]*",?\n)+)    \]$/gm;
+            return str.replaceAll(pattern, (match, inner) => {
+                const unquoted = inner.replaceAll(/"([a-z0-9_]*)"/g, '$1');
+                return `    ignore_changes = [\n${unquoted}    ]`;
+            });
+        }
+    } catch (err) {
+        logger.dump(`\n[Warning] Could not replace ignore_changes in terraform string: ${err.message}`);
         return str;
     }
 }

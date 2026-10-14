@@ -224,7 +224,8 @@ async function main(options) {
 				includeS2S: false,
 				isCompact: isCompact,
 				skipUserConfirmation: skipUserConfirmation,
-				preserveDescription: true
+				preserveDescription: true,
+				ignoreInitChanges: true
 			},
 			paths: {
 				tempDir: TEMP_DIR,
