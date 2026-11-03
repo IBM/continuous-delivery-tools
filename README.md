@@ -48,6 +48,7 @@ Commands:
   copy-project-group [options]  Copies all Git Repos and Issue Tracking projects in a group to another region.
   copy-toolchain [options]      Copies a toolchain, including tool integrations and Tekton pipelines, to another region or resource group.
   export-secrets [options]      Exports Toolchain stored secrets to a Secrets Manager instance
+  export-toolchain [options]    Exports a toolchain, including tool integrations and Tekton pipelines, into Terraform (.tf) files.
   help [command]                display help for command
 ```
 
@@ -196,6 +197,56 @@ The `copy-toolchain` command copies a toolchain within an IBM Cloud account. How
 2. Edit the `cd_toolchain.tf` file, replacing the `resource_group_id` with a valid resource group id in the target account. You can find the resource group id in the IBM Cloud console under [Manage > Account > Resource groups](https://cloud.ibm.com/account/resource-groups).
 3. Switch to the directory containing the Terraform files, and run `terraform init`, then `terraform apply`.
 4. When prompted for the API key, provide an API key for the target account you wish to copy the toolchain to.
+
+## export-toolchain
+
+### Overview
+The `export-toolchain` command exports an existing [toolchain](https://cloud.ibm.com/docs/ContinuousDelivery?topic=ContinuousDelivery-toolchains-using), including tool integrations and Tekton pipelines, into Terraform (.tf) files, and imports the existing resources into the Terraform state in the output directory. You can then edit the `.tf` files and run `terraform apply` to manage the toolchain with Terraform. Unlike `copy-toolchain`, no new toolchain is created.
+
+### Limitations
+1. [Classic pipelines](https://cloud.ibm.com/docs/ContinuousDelivery?topic=ContinuousDelivery-deliverypipeline_about) are not supported and are not exported.
+2. Legacy GitHub Enterprise tool integrations are not supported in Terraform. They are converted to equivalent GitHub integrations in the exported files. Running `terraform apply` creates the new integrations alongside the original ones, and the original legacy integrations can then be deleted.
+3. Secrets stored directly in the toolchain or Delivery Pipelines are exported as the hashed values (for example `hash:SHA3-512:...`) returned by the service, because the real values cannot be read back. Applying the exported files to the same toolchain leaves the stored secrets unchanged. The hashes are not the real secrets: do not apply the files to a different toolchain, and to change a secret, replace the hash with the new value. If a required secret has no value at all, the command writes a placeholder such as `<webhook>` and prints a warning listing each affected resource. Replace every placeholder with the real value before running `terraform apply`, otherwise the placeholder overwrites the existing value.
+4. Changes to the `initialization` block of Git tool integrations (GitHub, Git Repos and Issue Tracking, GitLab, Bitbucket) are ignored by default. See [Changing the repository URL of a Git tool integration](#changing-the-repository-url-of-a-git-tool-integration).
+
+### Prerequisites
+- An [IBM Cloud API key](https://cloud.ibm.com/docs/account?topic=account-manapikey) with **Viewer** access for the toolchain being exported.
+- The toolchain CRN. See [CRN](#crn).
+
+### Usage
+```shell-session
+$ npx @ibm-cloud/cd-tools export-toolchain -h
+Usage: @ibm-cloud/cd-tools export-toolchain [options]
+
+Exports a toolchain, including tool integrations and Tekton pipelines, into Terraform (.tf) files.
+
+Examples:
+  export IBMCLOUD_API_KEY='...'
+  npx @ibm-cloud/cd-tools export-toolchain -c ${TOOLCHAIN_CRN}
+      Export a toolchain into .tf files
+
+Environment Variables:
+  IBMCLOUD_API_KEY                       API key used to authenticate. Must have IAM permission to read the toolchain.
+
+Basic options:
+  -c, --toolchain-crn <crn>   The CRN of the source toolchain to export
+  -a, --apikey <api_key>      API key used to authenticate. Must have IAM permission to read the toolchain
+  -h, --help                  Display help for command
+
+Advanced options:
+  -d, --terraform-dir <path>  (Optional) The target local directory to store the generated Terraform (.tf) files
+  -f, --force                 (Optional) Force the export toolchain command to run without user confirmation
+  -C, --compact               (Optional) Generate all resources in a single resources.tf file
+  -v, --verbose               (Optional) Increase log output
+  -q, --quiet                 (Optional) Suppress non-essential output, only errors and critical warnings are displayed
+```
+
+If `-d, --terraform-dir` is not specified, the files are written to a directory in the current working directory named after the toolchain. The directory must not already contain `.tf` files.
+
+### Changing the repository URL of a Git tool integration
+The exported Git tool integration resources (`ibm_cd_toolchain_tool_githubconsolidated`, `ibm_cd_toolchain_tool_hostedgit`, `ibm_cd_toolchain_tool_gitlab`, `ibm_cd_toolchain_tool_bitbucketgit`) contain a `lifecycle { ignore_changes = [initialization] }` rule. The `initialization` block (including `repo_url`) is only used when a tool integration is created, and the provider does not read it back from an existing integration. Without the rule, Terraform would plan to replace every Git integration on the first `terraform apply`. As a result, editing `initialization.repo_url` in the exported file has no effect.
+
+To change the repository URL, remove the `ignore_changes` rule for that resource, edit `initialization.repo_url`, and run `terraform apply`. Terraform will **replace** the tool integration (destroy and re-create it), so the tool integration gets a new ID. Review the output of `terraform plan` before applying.
 
 ## export-secrets
 
