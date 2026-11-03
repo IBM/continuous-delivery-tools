@@ -36,12 +36,12 @@ const command = new Command('export-toolchain')
 	.summary('Exports a toolchain, including tool integrations and Tekton pipelines, into Terraform (.tf) files.')
 	.description(EXPORT_TOOLCHAIN_DESC)
 	.optionsGroup('Basic options:')
-	.requiredOption('-c, --toolchain-crn <crn>', 'The CRN of the source toolchain to copy')
-	.option('-a, --apikey <api_key>', 'API key used to authenticate. API key used to authenticate. Must have IAM permission to read the toolchain')
+	.requiredOption('-c, --toolchain-crn <crn>', 'The CRN of the source toolchain to export')
+	.option('-a, --apikey <api_key>', 'API key used to authenticate. Must have IAM permission to read the toolchain')
 	.helpOption('-h, --help', 'Display help for command')
 	.optionsGroup('Advanced options:')
 	.option('-d, --terraform-dir <path>', '(Optional) The target local directory to store the generated Terraform (.tf) files')
-	.option('-f, --force', '(Optional) Force the copy toolchain command to run without user confirmation')
+	.option('-f, --force', '(Optional) Force the export toolchain command to run without user confirmation')
 	.option('-C, --compact', '(Optional) Generate all resources in a single resources.tf file')
 	.option('-v, --verbose', '(Optional) Increase log output')
 	.option('-q, --quiet', '(Optional) Suppress non-essential output, only errors and critical warnings are displayed')
@@ -91,8 +91,7 @@ async function main(options) {
 		);
 
 		if (sourceToolchainCrn != sourceToolchainData['crn']) {
-			logger.error('Provided toolchain CRN is invalid', LOG_STAGES.setup);
-			exit(1);
+			throw Error('Provided toolchain CRN is invalid');
 		}
 
 		// check output dir option, or default to the toolchain name
@@ -167,6 +166,7 @@ async function main(options) {
 
 	// Import toolchain into Terraform state
 	let importBlocks;
+	let nonSecretRefs;
 
 	try {
 		const importTerraformWrapper = async () => {
@@ -177,7 +177,7 @@ async function main(options) {
 			await initProviderFile(sourceRegion, TEMP_DIR);
 			await runTerraformInit(TEMP_DIR, verbosity);
 
-			[, , , importBlocks] = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, sourceToolchainData['name'], TEMP_DIR, isCompact, verbosity);
+			[, nonSecretRefs, , importBlocks] = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, sourceToolchainData['name'], TEMP_DIR, isCompact, verbosity, true);
 		};
 
 		await logger.withSpinner(
@@ -186,6 +186,11 @@ async function main(options) {
 			'Toolchain successfully imported into Terraform',
 			LOG_STAGES.import
 		);
+
+		if (nonSecretRefs.length > 0) {
+			logger.warn('Warning! The following generated terraform resource(s) contain placeholder values for required secret(s) that could not be exported. Replace each placeholder with the real secret value before running terraform apply, otherwise the placeholder will overwrite the existing value:', LOG_STAGES.import, true);
+			logger.table(nonSecretRefs);
+		}
 
 	} catch (err) {
 		if (err.message && err.stack) {
