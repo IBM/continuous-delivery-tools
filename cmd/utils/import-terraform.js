@@ -21,7 +21,9 @@ import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
 const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true'; // when true, log extra errors for debugging
 
-export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, dir, isCompact, verbosity) {
+// when preserveSecrets is true (export), secrets keep the value imported into state, and a
+// placeholder is only added for required secrets that have no value (and reported in nonSecretRefs)
+export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, dir, isCompact, verbosity, preserveSecrets = false) {
     // STEP 1/2: set up terraform file with import blocks
     const importBlocks = []; // an array of objects representing import blocks, used in importBlocksToTf
     const additionalProps = {}; // maps resource name to array of { property/param, value }, used to override terraform import
@@ -37,6 +39,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     ];
 
     const nonSecretRefs = [];
+    const secretsToCheck = {}; // maps resource name to array of { tfKey, fileName }, only used when preserveSecrets is true
 
     let block = importBlock(toolchainId, toolchainName, 'ibm_cd_toolchain');
     importBlocks.push(block);
@@ -57,7 +60,10 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     for (const tool of allTools.tools) {
         const toolName = tool.parameters?.name ?? tool.tool_type_id;
 
-        if (tool.tool_type_id in SUPPORTED_TOOLS_MAP) {
+        const isClassicPipeline = tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic';
+
+        // classic pipelines are not supported, skip them
+        if (tool.tool_type_id in SUPPORTED_TOOLS_MAP && !isClassicPipeline) {
             block = importBlock(`${toolchainId}/${tool.id}`, toolName, SUPPORTED_TOOLS_MAP[tool.tool_type_id]);
             importBlocks.push(block);
 
@@ -84,7 +90,14 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                         additionalProps[block.name].push({ param: tfKey, value: tool.parameters[key] });
                     } else {
                         const newFileName = SUPPORTED_TOOLS_MAP[tool.tool_type_id].split('ibm_')[1];
-                        if (required || prereq) {
+                        if (preserveSecrets) {
+                            if (required) {
+                                secretsToCheck[block.name] = [
+                                    ...(secretsToCheck[block.name] ?? []),
+                                    { tfKey: tfKey, fileName: isCompact ? 'resources.tf' : `${newFileName}.tf` }
+                                ];
+                            }
+                        } else if (required || prereq) {
                             nonSecretRefs.push({
                                 resource_name: block.name,
                                 property_name: tfKey,
@@ -241,6 +254,17 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                         newTfFileObj['resource'][key][k]['parameters'][0][param] = value;
                     }
                 })
+            }
+
+            // add placeholders for required secrets that have no imported value
+            if (k in secretsToCheck) {
+                secretsToCheck[k].forEach(({ tfKey, fileName }) => {
+                    const currentValue = newTfFileObj['resource'][key][k]['parameters'][0][tfKey];
+                    if (currentValue === undefined || currentValue === null || currentValue === '') {
+                        newTfFileObj['resource'][key][k]['parameters'][0][tfKey] = `<${tfKey}>`;
+                        nonSecretRefs.push({ resource_name: k, property_name: tfKey, file_name: fileName });
+                    }
+                });
             }
 
             // add relevent references and depends_on

@@ -417,8 +417,15 @@ async function setupTerraformFiles(config) {
         }
 
         // for export, add lifecycle ignore_changes for initialization so Terraform does not try to
-        // apply the write-once block against already-existing resources
+        // apply the write-once block against already-existing resources, and for worker on Tekton
+        // pipelines without one (the null worker is removed during import, which would otherwise show as a diff)
         if (ignoreInitChanges) {
+            if (newTfFileObj['resource']['ibm_cd_tekton_pipeline']) {
+                for (const v of Object.values(newTfFileObj['resource']['ibm_cd_tekton_pipeline'])) {
+                    if (!v['worker']) v['lifecycle'] = [{ ignore_changes: ['worker'] }];
+                }
+            }
+
             const repoResourceTypes = [
                 'ibm_cd_toolchain_tool_hostedgit',
                 'ibm_cd_toolchain_tool_bitbucketgit',
