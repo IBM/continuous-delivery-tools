@@ -23,24 +23,18 @@ const TEMP_DIR = resolve(nconf.get('TEST_TEMP_DIR'));
 const LOG_DIR = resolve(nconf.get('TEST_LOG_DIR'));
 const DEBUG_MODE = nconf.get('TEST_DEBUG_MODE');
 
-function sleep(ms) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
+export function mochaGlobalSetup() {
+    fs.rmSync(TEMP_DIR, { recursive: true, force: true });
+    fs.rmSync(LOG_DIR, { recursive: true, force: true });
+    fs.mkdirSync(TEMP_DIR, { recursive: true });
 }
 
+export function mochaGlobalTeardown() {
+    if (fs.existsSync(TEMP_DIR) && DEBUG_MODE === false) fs.rmSync(TEMP_DIR, { recursive: true, force: true });
+}
+
+// Root hooks run in every worker
 export const mochaHooks = {
-    async beforeAll() {
-        for (let i = 0; i < 3; i++) {
-            try {
-                fs.rmSync(TEMP_DIR, { recursive: true, force: true });
-                fs.rmSync(LOG_DIR, { recursive: true, force: true });
-            } catch {}
-            if (!fs.existsSync(TEMP_DIR) && !fs.existsSync(LOG_DIR)) break;
-            await sleep(1000);
-        }
-        fs.mkdirSync(TEMP_DIR, { recursive: true });
-    },
     beforeEach() {
         if (DEBUG_MODE === true && LOG_DIR) {
             const testTitle = this.currentTest.title.toLowerCase().replaceAll(':', '').replaceAll(' ', '-');
@@ -56,8 +50,5 @@ export const mochaHooks = {
     async afterEach() {
         await logger.close();
         // console.info(`Closed test log stream for test case '${this.currentTest.title}'`);
-    },
-    afterAll() {
-        if (fs.existsSync(TEMP_DIR) && DEBUG_MODE === false) fs.rmSync(TEMP_DIR, { recursive: true });
     },
 };
