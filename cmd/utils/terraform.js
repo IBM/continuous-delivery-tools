@@ -614,7 +614,48 @@ function addS2sScriptToToolchainTf(str, timeSuffix) {
     }
 }
 
+// Imports all resources in a single Terraform run using import blocks
+// The plan is checked first: the exported config can differ from the live resources (e.g. placeholder
+// secrets), and applying that would modify them. Unless every change is a pure import, falls back to
+// importing one resource at a time, which never changes remote resources.
 async function runTerraformImport(importBlocks, outputDir, verbosity) {
+    if (importBlocks.length === 0) return;
+
+    const importFile = `${outputDir}/import.tf`;
+    const planFile = 'import.tfplan';
+
+    try {
+        fs.writeFileSync(importFile, importBlocks.map((block) => `import {
+  id = "${block.id}"
+  to = ${block.to}
+}\n`).join('\n'));
+
+        logger.log('Running command \'terraform plan\' for imports', LOG_STAGES.tf);
+        await execPromise(`terraform plan -input=false -no-color -out=${planFile}`, { cwd: outputDir });
+
+        const planJson = JSON.parse(await execPromise(`terraform show -json ${planFile}`, { cwd: outputDir }));
+        const changes = planJson.resource_changes || [];
+        const isImportOnly = changes.length > 0 && changes.every((c) =>
+            c.change?.importing && c.change.actions.length === 1 && c.change.actions[0] === 'no-op');
+
+        if (isImportOnly) {
+            logger.log('Running command \'terraform apply\' for imports', LOG_STAGES.tf);
+            await execPromise(`terraform apply -input=false -no-color ${planFile}`, { cwd: outputDir });
+            logger.log('Command \'terraform apply\' for imports completed', LOG_STAGES.tf);
+            return;
+        }
+        logger.log('Import plan contains changes other than imports, importing resources one at a time', LOG_STAGES.tf);
+    } catch (err) {
+        logger.log(`Batch import failed, importing resources one at a time: ${err.message}`, LOG_STAGES.tf);
+    } finally {
+        fs.rmSync(importFile, { force: true });
+        fs.rmSync(`${outputDir}/${planFile}`, { force: true });
+    }
+
+    await runTerraformImportSequential(importBlocks, outputDir, verbosity);
+}
+
+async function runTerraformImportSequential(importBlocks, outputDir, verbosity) {
     for (const block of importBlocks) {
         logger.log(`Running command 'terraform import' for ${block.to}`, LOG_STAGES.tf);
 
