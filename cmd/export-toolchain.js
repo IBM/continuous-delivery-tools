@@ -170,14 +170,18 @@ async function main(options) {
 
 	try {
 		const importTerraformWrapper = async () => {
-			setTimeout(() => {
+			const stillImportingTimer = setTimeout(() => {
 				logger.updateSpinnerMsg('Still importing toolchain...');
 			}, 5000);
 
-			await initProviderFile(sourceRegion, TEMP_DIR);
-			await runTerraformInit(TEMP_DIR, verbosity);
+			try {
+				await initProviderFile(sourceRegion, TEMP_DIR);
+				await runTerraformInit(TEMP_DIR, verbosity);
 
-			[, nonSecretRefs, , importBlocks] = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, sourceToolchainData['name'], TEMP_DIR, isCompact, verbosity, true);
+				[, nonSecretRefs, , importBlocks] = await importTerraform(bearer, apiKey, sourceRegion, sourceToolchainId, sourceToolchainData['name'], TEMP_DIR, isCompact, verbosity, true);
+			} finally {
+				clearTimeout(stillImportingTimer);
+			}
 		};
 
 		await logger.withSpinner(
@@ -202,12 +206,17 @@ async function main(options) {
 	}
 
 	// Write Terraform files to output directory
+	let outputDirCreated = false;
+	let preExistingEntries = [];
+
 	try {
 		if (!fs.existsSync(outputDir)) {
 			logger.info(`Creating output directory "${outputDir}"...`, LOG_STAGES.import);
 			fs.mkdirSync(outputDir);
+			outputDirCreated = true;
 		} else {
 			logger.info(`Output directory "${outputDir}" already exists`, LOG_STAGES.import);
+			preExistingEntries = fs.readdirSync(outputDir);
 		}
 
 		await setupTerraformFiles({
@@ -269,12 +278,33 @@ async function main(options) {
 			const errMsg = verbosity > 1 ? err.stack : err.message;
 			logger.error(errMsg, LOG_STAGES.import);
 		}
+		cleanupPartialOutput(outputDir, outputDirCreated, preExistingEntries);
 		await handleCleanup();
 		exit(1);
 	}
 
 	await handleCleanup();
 	exit(0);
+}
+
+// A failed export leaves a partial Terraform state in the output directory, which is unsafe to apply
+function cleanupPartialOutput(outputDir, outputDirCreated, preExistingEntries) {
+	if (DEBUG_MODE || !fs.existsSync(outputDir)) return;
+
+	try {
+		if (outputDirCreated) {
+			fs.rmSync(outputDir, { recursive: true, force: true });
+		} else {
+			for (const entry of fs.readdirSync(outputDir)) {
+				if (!preExistingEntries.includes(entry)) {
+					fs.rmSync(resolve(outputDir, entry), { recursive: true, force: true });
+				}
+			}
+		}
+		logger.warn(`Export failed, removed the partial output from "${outputDir}"`, LOG_STAGES.import, true);
+	} catch (err) {
+		logger.warn(`Export failed, and the partial output in "${outputDir}" could not be removed (${err.message}). Do not run terraform apply in this directory`, LOG_STAGES.import, true);
+	}
 }
 
 async function handleCleanup() {
