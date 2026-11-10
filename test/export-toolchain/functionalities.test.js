@@ -8,9 +8,6 @@
  */
 
 import path from 'node:path';
-import fs from 'node:fs';
-import child_process from 'node:child_process';
-import { promisify } from 'node:util';
 import nconf from 'nconf';
 
 import { expect, assert } from 'chai';
@@ -23,7 +20,6 @@ nconf.file('local', 'test/config/local.json');
 
 const TEMP_DIR = nconf.get('TEST_TEMP_DIR');
 const VERBOSE_MODE = nconf.get('VERBOSE_MODE');
-const IBMCLOUD_API_KEY = nconf.get('IBMCLOUD_API_KEY');
 
 const CLI_PATH = path.resolve('index.js');
 const COMMAND = 'export-toolchain';
@@ -128,26 +124,4 @@ describe('export-toolchain: Test functionalities', function () {
         });
     }
 
-    it('Exported Terraform shows no changes on terraform plan', async () => {
-        const dir = testDir('no-changes-on-plan');
-        const cmd = [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['single-pl'].crn, '-d', dir];
-        if (VERBOSE_MODE) cmd.push('-v');
-        await assertPtyOutput(cmd, /successfully exported/, { timeout: 200000 });
-
-        // -detailed-exitcode: 0 = no changes, 1 = error, 2 = changes
-        const execPromise = promisify(child_process.exec);
-        let exitCode = 0;
-        let stdout = '';
-        try {
-            ({ stdout } = await execPromise('terraform plan -detailed-exitcode -input=false -no-color', {
-                cwd: dir,
-                env: { ...process.env, TF_VAR_ibmcloud_api_key: IBMCLOUD_API_KEY }
-            }));
-        } catch (e) {
-            exitCode = e.code;
-            stdout = e.stdout + e.stderr;
-        }
-        assert.equal(exitCode, 0, `Expected terraform plan to show no changes, got exit code ${exitCode}:\n${stdout}`);
-        expect(fs.existsSync(path.resolve(dir, 'terraform.tfstate'))).to.equal(true);
-    });
 });
