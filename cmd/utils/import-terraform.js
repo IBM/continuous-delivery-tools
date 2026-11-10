@@ -27,6 +27,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     // STEP 1/2: set up terraform file with import blocks
     const importBlocks = []; // an array of objects representing import blocks, used in importBlocksToTf
     const additionalProps = {}; // maps resource name to array of { property/param, value }, used to override terraform import
+    const rawPropValues = {}; // maps pipeline/trigger property resource name to its value as stored in the API
 
     const toolIdMap = {}; // maps tool ids to { type, name }, used to add references
 
@@ -135,6 +136,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             pipelineData.properties?.forEach((prop) => {
                 block = importBlock(`${pipelineData.id}/${prop.name}`, prop.name, 'ibm_cd_tekton_pipeline_property');
                 importBlocks.push(block);
+                if (prop.type !== 'secure' && typeof prop.value === 'string') rawPropValues[block.name] = prop.value;
 
                 // overwrite hard-coded id with reference
                 additionalProps[block.name] = [
@@ -156,6 +158,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 trig.properties?.forEach((trigProp) => {
                     block = importBlock(`${pipelineData.id}/${trig.id}/${trigProp.name}`, trigProp.name, 'ibm_cd_tekton_pipeline_trigger_property');
                     importBlocks.push(block);
+                    if (trigProp.type !== 'secure' && typeof trigProp.value === 'string') rawPropValues[block.name] = trigProp.value;
 
                     // overwrite hard-coded id with reference
                     additionalProps[block.name] = [
@@ -286,7 +289,9 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     const END_INDICATOR = ')}';
 
                     if (propValue.startsWith(START_INDICATOR) && propValue.endsWith(END_INDICATOR)) {
-                        // skip substitution for jsonencode case, don't want to mangle it
+                        // the generated jsonencode() would reformat the stored value and show as a
+                        // diff in terraform plan, so use the value as stored in the API when available
+                        if (k in rawPropValues) newValue = escapeReservedChars(rawPropValues[k]);
                     } else {
                         newValue = escapeReservedChars(propValue);
                     }
