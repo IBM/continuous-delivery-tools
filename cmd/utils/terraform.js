@@ -16,7 +16,9 @@ import { jsonToTf } from 'json-to-tf';
 
 import { validateToolchainId, validateGritUrl } from './validate.js';
 import { logger, LOG_STAGES } from './logger.js';
-import { escapeReservedChars, getRandChars, promptUserInput, replaceUrlRegion } from './utils.js';
+import { escapeReservedChars, getRandChars, isSecretReference, promptUserInput, replaceUrlRegion } from './utils.js';
+
+import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
 const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
@@ -177,8 +179,11 @@ async function setupTerraformFiles(config) {
             if (newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'])) {
                     try {
-                        newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
-                        delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
+                        // export keeps the existing auth_type, since the resources are imported as-is
+                        if (!ignoreInitChanges) {
+                            newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
+                            delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
+                        }
                     } catch (err) {
                         logger.dump(`\n[Warning] Could not convert auth_type for hostedgit tool "${k}": ${err.message}`);
                     }
@@ -439,6 +444,29 @@ async function setupTerraformFiles(config) {
                     }
                 }
             }
+
+            // secrets that were not exported (not a secret reference) cannot be read back from the API, so
+            // ignore them to stop terraform apply from overwriting or clearing the existing values
+            for (const [type, resources] of Object.entries(newTfFileObj['resource'])) {
+                const toolTypeId = Object.keys(SUPPORTED_TOOLS_MAP).find((id) => SUPPORTED_TOOLS_MAP[id] === type);
+                if (!toolTypeId || !(toolTypeId in SECRET_KEYS_MAP)) continue;
+
+                for (const resource of Object.values(resources)) {
+                    const params = resource['parameters']?.[0];
+                    if (!params) continue;
+
+                    const secretAttrs = SECRET_KEYS_MAP[toolTypeId]
+                        .filter(({ tfKey, prereq }) => tfKey
+                            && (!prereq || prereq.values.includes(params[prereq.key]))
+                            && !isSecretReference(params[tfKey]))
+                        .map(({ tfKey }) => `parameters[0].${tfKey}`);
+
+                    if (secretAttrs.length > 0) {
+                        const existing = resource['lifecycle']?.[0]?.['ignore_changes'] ?? [];
+                        resource['lifecycle'] = [{ ignore_changes: [...existing, ...secretAttrs] }];
+                    }
+                }
+            }
         }
 
         const newTfFileObjStr = JSON.stringify(newTfFileObj);
@@ -578,9 +606,9 @@ function replaceDependsOn(str) {
 function replaceIgnoreChanges(str) {
     try {
         if (typeof str === 'string') {
-            const pattern = /^    ignore_changes = \[\n((?:      "[a-z0-9_]*",?\n)+)    \]$/gm;
+            const pattern = /^    ignore_changes = \[\n((?:      "[a-z0-9_[\].]*",?\n)+)    \]$/gm;
             return str.replaceAll(pattern, (match, inner) => {
-                const unquoted = inner.replaceAll(/"([a-z0-9_]*)"/g, '$1');
+                const unquoted = inner.replaceAll(/"([a-z0-9_[\].]*)"/g, '$1');
                 return `    ignore_changes = [\n${unquoted}    ]`;
             });
         }

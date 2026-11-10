@@ -192,7 +192,7 @@ async function main(options) {
 		);
 
 		if (nonSecretRefs.length > 0) {
-			logger.warn('Warning! The following generated terraform resource(s) contain placeholder values for required secret(s) that could not be exported. Replace each placeholder with the real secret value before running terraform apply, otherwise the placeholder will overwrite the existing value:', LOG_STAGES.import, true);
+			logger.warn('Note: The following generated terraform resource(s) contain placeholder values for required secret(s) that could not be exported. These attributes are ignored via lifecycle ignore_changes, so terraform apply will not overwrite the existing values. Remove the ignore_changes entry and set the real value to manage a secret through Terraform:', LOG_STAGES.import, true);
 			logger.table(nonSecretRefs);
 		}
 
