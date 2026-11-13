@@ -75,7 +75,7 @@ async function setupTerraformFiles(config) {
         auth: { token },
         source: { srcRegion, srcToolchainId },
         target: { targetRegion, targetRgId, targetToolchainName, targetTag },
-        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation, preserveDescription, ignoreInitChanges },
+        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation, preserveDescription, isExport },
         paths: { tempDir, outputDir },
         additional: { gritMapping, moreTfResources, timeSuffix }
     } = config;
@@ -143,8 +143,10 @@ async function setupTerraformFiles(config) {
                     type: 'link',
                 }],
                 parameters: [{
-                    ...(t['parameters']['auth_type'] === 'pat' ? { api_token: t['parameters']['api_token'] } : {}),
-                    auth_type: t['parameters']['auth_type'],
+                    // export cannot read back the legacy token, so the converted integration uses OAuth,
+                    // and the user must re-authenticate it
+                    ...(!isExport && t['parameters']['auth_type'] === 'pat' ? { api_token: t['parameters']['api_token'] } : {}),
+                    auth_type: isExport ? 'oauth' : t['parameters']['auth_type'],
                     enable_traceability: t['parameters']['enable_traceability'],
                     integration_owner: t['parameters']['integration_owner'],
                     toolchain_issues_enabled: t['parameters']['has_issues'],
@@ -180,13 +182,16 @@ async function setupTerraformFiles(config) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'])) {
                     try {
                         // export keeps the existing auth_type, since the resources are imported as-is
-                        if (!ignoreInitChanges) {
+                        if (!isExport) {
                             newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
                             delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
                         }
                     } catch (err) {
                         logger.dump(`\n[Warning] Could not convert auth_type for hostedgit tool "${k}": ${err.message}`);
                     }
+
+                    // export keeps the existing repo URLs, so skip GRIT URL validation and mapping
+                    if (isExport) continue;
 
                     try {
                         const thisUrl = v['initialization'][0]['repo_url'];
@@ -424,7 +429,7 @@ async function setupTerraformFiles(config) {
         // for export, add lifecycle ignore_changes for initialization so Terraform does not try to
         // apply the write-once block against already-existing resources, and for worker on Tekton
         // pipelines without one (the null worker is removed during import, which would otherwise show as a diff)
-        if (ignoreInitChanges) {
+        if (isExport) {
             if (newTfFileObj['resource']['ibm_cd_tekton_pipeline']) {
                 for (const v of Object.values(newTfFileObj['resource']['ibm_cd_tekton_pipeline'])) {
                     if (!v['worker']) v['lifecycle'] = [{ ignore_changes: ['worker'] }];

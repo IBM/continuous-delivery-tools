@@ -21,9 +21,9 @@ import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
 const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true'; // when true, log extra errors for debugging
 
-// when preserveSecrets is true (export), secrets keep the value imported into state, and a
-// placeholder is only added for required secrets that have no value (and reported in nonSecretRefs)
-export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, dir, isCompact, verbosity, preserveSecrets = false) {
+// when isExport is true (export-toolchain), classic pipelines are skipped, secrets keep the value imported
+// into state, and a placeholder is only added for required secrets that have no value (and reported in nonSecretRefs)
+export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, dir, isCompact, verbosity, isExport = false) {
     // STEP 1/2: set up terraform file with import blocks
     const importBlocks = []; // an array of objects representing import blocks, used in importBlocksToTf
     const additionalProps = {}; // maps resource name to array of { property/param, value }, used to override terraform import
@@ -40,7 +40,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     ];
 
     const nonSecretRefs = [];
-    const secretsToCheck = {}; // maps resource name to array of { tfKey, fileName }, only used when preserveSecrets is true
+    const secretsToCheck = {}; // maps resource name to array of { tfKey, fileName }, only used when isExport is true
 
     let block = importBlock(toolchainId, toolchainName, 'ibm_cd_toolchain');
     importBlocks.push(block);
@@ -61,10 +61,10 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     for (const tool of allTools.tools) {
         const toolName = tool.parameters?.name ?? tool.tool_type_id;
 
-        const isClassicPipeline = tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic';
+        // export-toolchain does not support classic pipelines, skip them
+        const skipClassicPipeline = isExport && tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic';
 
-        // classic pipelines are not supported, skip them
-        if (tool.tool_type_id in SUPPORTED_TOOLS_MAP && !isClassicPipeline) {
+        if (tool.tool_type_id in SUPPORTED_TOOLS_MAP && !skipClassicPipeline) {
             block = importBlock(`${toolchainId}/${tool.id}`, toolName, SUPPORTED_TOOLS_MAP[tool.tool_type_id]);
             importBlocks.push(block);
 
@@ -91,7 +91,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                         additionalProps[block.name].push({ param: tfKey, value: tool.parameters[key] });
                     } else {
                         const newFileName = SUPPORTED_TOOLS_MAP[tool.tool_type_id].split('ibm_')[1];
-                        if (preserveSecrets) {
+                        if (isExport) {
                             if (required) {
                                 secretsToCheck[block.name] = [
                                     ...(secretsToCheck[block.name] ?? []),
@@ -291,7 +291,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     if (propValue.startsWith(START_INDICATOR) && propValue.endsWith(END_INDICATOR)) {
                         // the generated jsonencode() would reformat the stored value and show as a
                         // diff in terraform plan, so use the value as stored in the API when available
-                        if (k in rawPropValues) newValue = escapeReservedChars(rawPropValues[k]);
+                        if (isExport && k in rawPropValues) newValue = escapeReservedChars(rawPropValues[k]).replaceAll('${', '$${').replaceAll('%{', '%%{');
                     } else {
                         newValue = escapeReservedChars(propValue);
                     }

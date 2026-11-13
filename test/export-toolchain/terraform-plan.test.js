@@ -59,8 +59,7 @@ describe('export-toolchain: Test terraform plan of exported toolchains', functio
         it(`Exported Terraform only plans expected changes: ${key}`, async () => {
             // each test exports into its own directory, since tests run in parallel
             const dir = path.resolve(TEMP_DIR, `export-plan-${key}`);
-            // -f: skip the GRIT URL mapping prompt, which cannot be answered here
-            const cmd = [CLI_PATH, COMMAND, '-c', toolchain.crn, '-d', dir, '-f'];
+            const cmd = [CLI_PATH, COMMAND, '-c', toolchain.crn, '-d', dir];
             if (VERBOSE_MODE) cmd.push('-v');
             await assertPtyOutput(cmd, /successfully exported/, { timeout: 400000 });
             expect(fs.existsSync(path.resolve(dir, 'terraform.tfstate'))).to.equal(true);

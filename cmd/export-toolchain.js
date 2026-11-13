@@ -41,7 +41,6 @@ const command = new Command('export-toolchain')
 	.helpOption('-h, --help', 'Display help for command')
 	.optionsGroup('Advanced options:')
 	.option('-d, --terraform-dir <path>', '(Optional) The target local directory to store the generated Terraform (.tf) files')
-	.option('-f, --force', '(Optional) Force the export toolchain command to run without user confirmation')
 	.option('-C, --compact', '(Optional) Generate all resources in a single resources.tf file')
 	.option('-v, --verbose', '(Optional) Increase log output')
 	.option('-q, --quiet', '(Optional) Suppress non-essential output, only errors and critical warnings are displayed')
@@ -51,7 +50,6 @@ const command = new Command('export-toolchain')
 
 async function main(options) {
 	const sourceToolchainCrn = options.toolchainCrn;
-	const skipUserConfirmation = options.force || false;
 	const isCompact = options.compact || false;
 	const verbosity = options.quiet ? 0 : options.verbose ? 2 : 1;
 
@@ -144,7 +142,7 @@ async function main(options) {
 		}
 
 		if (gheTools.length > 0) {
-			logger.warn('Note: The following legacy GitHub Enterprise integration(s), which are not supported in Terraform, will automatically be converted to equivalent GitHub integrations in the exported Terraform files. When re-applying the Terraform, new integrations will be created alongside the original, and the original legacy integrations can then be deleted.\n', LOG_STAGES.setup, true);
+			logger.warn('Note: The following legacy GitHub Enterprise integration(s), which are not supported in Terraform, will automatically be converted to equivalent GitHub integrations (using OAuth) in the exported Terraform files. When re-applying the Terraform, new integrations will be created alongside the original. You must then re-authenticate each new integration, after which the original legacy integrations can be deleted.\n', LOG_STAGES.setup, true);
 			logger.table(gheTools);
 		}
 
@@ -237,9 +235,8 @@ async function main(options) {
 				disableTriggers: false,
 				includeS2S: false,
 				isCompact: isCompact,
-				skipUserConfirmation: skipUserConfirmation,
 				preserveDescription: true,
-				ignoreInitChanges: true
+				isExport: true
 			},
 			paths: {
 				tempDir: TEMP_DIR,
