@@ -1,6 +1,6 @@
 /**
  * Licensed Materials - Property of IBM
- * (c) Copyright IBM Corporation 2025. All Rights Reserved.
+ * (c) Copyright IBM Corporation 2025, 2026. All Rights Reserved.
  *
  * Note to U.S. Government Users Restricted Rights:
  * Use, duplication or disclosure restricted by GSA ADP Schedule
@@ -16,7 +16,9 @@ import { jsonToTf } from 'json-to-tf';
 
 import { validateToolchainId, validateGritUrl } from './validate.js';
 import { logger, LOG_STAGES } from './logger.js';
-import { escapeReservedChars, getRandChars, promptUserInput, replaceUrlRegion } from './utils.js';
+import { escapeReservedChars, getRandChars, isSecretReference, promptUserInput, replaceUrlRegion } from './utils.js';
+
+import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
 const CLOUD_PLATFORM = process.env['IBMCLOUD_PLATFORM_DOMAIN'] || 'cloud.ibm.com';
 const DEV_MODE = CLOUD_PLATFORM !== 'cloud.ibm.com';
@@ -73,7 +75,7 @@ async function setupTerraformFiles(config) {
         auth: { token },
         source: { srcRegion, srcToolchainId },
         target: { targetRegion, targetRgId, targetToolchainName, targetTag },
-        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation },
+        options: { disableTriggers, includeS2S, isCompact, skipUserConfirmation, preserveDescription, isExport },
         paths: { tempDir, outputDir },
         additional: { gritMapping, moreTfResources, timeSuffix }
     } = config;
@@ -141,8 +143,10 @@ async function setupTerraformFiles(config) {
                     type: 'link',
                 }],
                 parameters: [{
-                    ...(t['parameters']['auth_type'] === 'pat' ? { api_token: t['parameters']['api_token'] } : {}),
-                    auth_type: t['parameters']['auth_type'],
+                    // export cannot read back the legacy token, so the converted integration uses OAuth,
+                    // and the user must re-authenticate it
+                    ...(!isExport && t['parameters']['auth_type'] === 'pat' ? { api_token: t['parameters']['api_token'] } : {}),
+                    auth_type: isExport ? 'oauth' : t['parameters']['auth_type'],
                     enable_traceability: t['parameters']['enable_traceability'],
                     integration_owner: t['parameters']['integration_owner'],
                     toolchain_issues_enabled: t['parameters']['has_issues'],
@@ -177,11 +181,17 @@ async function setupTerraformFiles(config) {
             if (newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit']) {
                 for (const [k, v] of Object.entries(newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'])) {
                     try {
-                        newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
-                        delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
+                        // export keeps the existing auth_type, since the resources are imported as-is
+                        if (!isExport) {
+                            newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['auth_type'] = 'oauth';
+                            delete newTfFileObj['resource']['ibm_cd_toolchain_tool_hostedgit'][k]['parameters'][0]['api_token'];
+                        }
                     } catch (err) {
                         logger.dump(`\n[Warning] Could not convert auth_type for hostedgit tool "${k}": ${err.message}`);
                     }
+
+                    // export keeps the existing repo URLs, so skip GRIT URL validation and mapping
+                    if (isExport) continue;
 
                     try {
                         const thisUrl = v['initialization'][0]['repo_url'];
@@ -240,18 +250,20 @@ async function setupTerraformFiles(config) {
             if (targetToolchainName) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] = targetToolchainName;
             if (targetRgId) newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['resource_group_id'] = targetRgId;
 
-            // set new description
-            const oldDesc = newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'];
-            let newDesc = `Copied from https://cloud.ibm.com/devops/toolchains/${srcToolchainId}?env_id=ibm:yp:${srcRegion}` +
-                (oldDesc && oldDesc != newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] ?
-                    `; Original description: ${oldDesc}`
-                    : '')
-            // if greater than 500 chars, truncate to fit within 500 chars and add a marker`
-            if (newDesc.length > 500) {
-                const marker = ' (truncated)';
-                newDesc = newDesc.substring(0, 500 - marker.length) + marker;
+            if (!preserveDescription) {
+                // set new description
+                const oldDesc = newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'];
+                let newDesc = `Copied from https://cloud.ibm.com/devops/toolchains/${srcToolchainId}?env_id=ibm:yp:${srcRegion}` +
+                    (oldDesc && oldDesc != newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['name'] ?
+                        `; Original description: ${oldDesc}`
+                        : '')
+                // if greater than 500 chars, truncate to fit within 500 chars and add a marker`
+                if (newDesc.length > 500) {
+                    const marker = ' (truncated)';
+                    newDesc = newDesc.substring(0, 500 - marker.length) + marker;
+                }
+                newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'] = newDesc;
             }
-            newTfFileObj['resource']['ibm_cd_toolchain'][newTcId]['description'] = newDesc;
         }
 
         if (isCompact || resourceName === 'ibm_cd_tekton_pipeline_trigger') {
@@ -414,8 +426,56 @@ async function setupTerraformFiles(config) {
             }
         }
 
+        // for export, add lifecycle ignore_changes for initialization so Terraform does not try to
+        // apply the write-once block against already-existing resources, and for worker on Tekton
+        // pipelines without one (the null worker is removed during import, which would otherwise show as a diff)
+        if (isExport) {
+            if (newTfFileObj['resource']['ibm_cd_tekton_pipeline']) {
+                for (const v of Object.values(newTfFileObj['resource']['ibm_cd_tekton_pipeline'])) {
+                    if (!v['worker']) v['lifecycle'] = [{ ignore_changes: ['worker'] }];
+                }
+            }
+
+            const repoResourceTypes = [
+                'ibm_cd_toolchain_tool_hostedgit',
+                'ibm_cd_toolchain_tool_bitbucketgit',
+                'ibm_cd_toolchain_tool_gitlab',
+                'ibm_cd_toolchain_tool_githubconsolidated',
+            ];
+            for (const type of repoResourceTypes) {
+                if (newTfFileObj['resource'][type]) {
+                    for (const k of Object.keys(newTfFileObj['resource'][type])) {
+                        newTfFileObj['resource'][type][k]['lifecycle'] = [{ ignore_changes: ['initialization'] }];
+                    }
+                }
+            }
+
+            // secrets that were not exported (not a secret reference) cannot be read back from the API, so
+            // ignore them to stop terraform apply from overwriting or clearing the existing values
+            for (const [type, resources] of Object.entries(newTfFileObj['resource'])) {
+                const toolTypeId = Object.keys(SUPPORTED_TOOLS_MAP).find((id) => SUPPORTED_TOOLS_MAP[id] === type);
+                if (!toolTypeId || !(toolTypeId in SECRET_KEYS_MAP)) continue;
+
+                for (const resource of Object.values(resources)) {
+                    const params = resource['parameters']?.[0];
+                    if (!params) continue;
+
+                    const secretAttrs = SECRET_KEYS_MAP[toolTypeId]
+                        .filter(({ tfKey, prereq }) => tfKey
+                            && (!prereq || prereq.values.includes(params[prereq.key]))
+                            && !isSecretReference(params[tfKey]))
+                        .map(({ tfKey }) => `parameters[0].${tfKey}`);
+
+                    if (secretAttrs.length > 0) {
+                        const existing = resource['lifecycle']?.[0]?.['ignore_changes'] ?? [];
+                        resource['lifecycle'] = [{ ignore_changes: [...existing, ...secretAttrs] }];
+                    }
+                }
+            }
+        }
+
         const newTfFileObjStr = JSON.stringify(newTfFileObj);
-        let newTfFile = replaceDependsOn(jsonToTf(newTfFileObjStr));
+        let newTfFile = replaceIgnoreChanges(replaceDependsOn(jsonToTf(newTfFileObjStr)));
         if (includeS2S && (isCompact || resourceName === 'ibm_cd_toolchain')) {
             newTfFile = addS2sScriptToToolchainTf(newTfFile, timeSuffix);
         }
@@ -427,7 +487,7 @@ async function setupTerraformFiles(config) {
     if (hasGHE && !isCompact && !files.includes('cd_toolchain_tool_githubconsolidated.tf')) {
         const newTfFileObj = { 'resource': { ['ibm_cd_toolchain_tool_githubconsolidated']: newConvertedTf } };
         const newTfFileObjStr = JSON.stringify(newTfFileObj);
-        const newTfFile = jsonToTf(newTfFileObjStr);
+        const newTfFile = replaceIgnoreChanges(jsonToTf(newTfFileObjStr));
         const copyResourcesPromise = writeFilePromise(`${outputDir}/cd_toolchain_tool_githubconsolidated.tf`, newTfFile);
         promises.push(copyResourcesPromise);
     }
@@ -547,6 +607,22 @@ function replaceDependsOn(str) {
     }
 }
 
+// fix quoted attribute references in ignore_changes
+function replaceIgnoreChanges(str) {
+    try {
+        if (typeof str === 'string') {
+            const pattern = /^    ignore_changes = \[\n((?:      "[a-z0-9_[\].]*",?\n)+)    \]$/gm;
+            return str.replaceAll(pattern, (match, inner) => {
+                const unquoted = inner.replaceAll(/"([a-z0-9_[\].]*)"/g, '$1');
+                return `    ignore_changes = [\n${unquoted}    ]`;
+            });
+        }
+    } catch (err) {
+        logger.dump(`\n[Warning] Could not replace ignore_changes in terraform string: ${err.message}`);
+        return str;
+    }
+}
+
 function addS2sScriptToToolchainTf(str, timeSuffix) {
     const provisionerStr = (tfName) => `\n\n  provisioner "local-exec" {
     command = "node create-s2s-script.cjs"
@@ -571,6 +647,88 @@ function addS2sScriptToToolchainTf(str, timeSuffix) {
     }
 }
 
+// Imports all resources in a single Terraform run using import blocks
+// The plan is checked first: the exported config can differ from the live resources (e.g. placeholder
+// secrets), and applying that would modify them. Unless every change is a pure import, falls back to
+// importing one resource at a time, which never changes remote resources.
+async function runTerraformImport(importBlocks, outputDir, verbosity) {
+    if (importBlocks.length === 0) return;
+
+    const importFile = `${outputDir}/import.tf`;
+    const planFile = 'import.tfplan';
+
+    try {
+        fs.writeFileSync(importFile, importBlocks.map((block) => `import {
+  id = "${block.id}"
+  to = ${block.to}
+}\n`).join('\n'));
+
+        logger.log('Running command \'terraform plan\' for imports', LOG_STAGES.tf);
+        await execPromise(`terraform plan -input=false -no-color -out=${planFile}`, { cwd: outputDir });
+
+        const planJson = JSON.parse(await execPromise(`terraform show -json ${planFile}`, { cwd: outputDir }));
+        const changes = planJson.resource_changes || [];
+        const isImportOnly = changes.length > 0 && changes.every((c) =>
+            c.change?.importing && c.change.actions.length === 1 && c.change.actions[0] === 'no-op');
+
+        if (isImportOnly) {
+            logger.log('Running command \'terraform apply\' for imports', LOG_STAGES.tf);
+            await execPromise(`terraform apply -input=false -no-color ${planFile}`, { cwd: outputDir });
+            logger.log('Command \'terraform apply\' for imports completed', LOG_STAGES.tf);
+            return;
+        }
+        logger.log('Import plan contains changes other than imports, importing resources one at a time', LOG_STAGES.tf);
+    } catch (err) {
+        logger.log(`Batch import failed, importing resources one at a time: ${err.message}`, LOG_STAGES.tf);
+    } finally {
+        fs.rmSync(importFile, { force: true });
+        fs.rmSync(`${outputDir}/${planFile}`, { force: true });
+    }
+
+    await runTerraformImportSequential(importBlocks, outputDir, verbosity);
+}
+
+async function runTerraformImportSequential(importBlocks, outputDir, verbosity) {
+    for (const block of importBlocks) {
+        logger.log(`Running command 'terraform import' for ${block.to}`, LOG_STAGES.tf);
+
+        await new Promise((resolve, reject) => {
+            const child = child_process.spawn(`terraform import "${block.to}" "${block.id}"`, {
+                cwd: outputDir,
+                stdio: ['inherit', 'pipe', 'pipe'],
+                shell: true,
+                env: process.env,
+            });
+
+            child.stdout.on('data', (chunk) => {
+                const text = chunk.toString();
+                if (verbosity >= 2) {
+                    process.stdout.write(text);
+                    logger.dump(text);
+                }
+            });
+
+            child.stderr.on('data', (chunk) => {
+                const text = chunk.toString();
+                if (verbosity >= 0) { // errors should still surface in quiet mode
+                    process.stderr.write(text);
+                    logger.dump(text);
+                }
+            });
+
+            child.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`terraform import failed for ${block.to} with code ${code}`));
+                }
+            });
+        });
+
+        logger.log(`Command 'terraform import' completed for ${block.to}`, LOG_STAGES.tf);
+    }
+}
+
 export {
     setTerraformEnv,
     initProviderFile,
@@ -580,5 +738,6 @@ export {
     getNumResourcesPlanned,
     runTerraformApply,
     getNewToolchainId,
-    getNumResourcesCreated
+    getNumResourcesCreated,
+    runTerraformImport
 }

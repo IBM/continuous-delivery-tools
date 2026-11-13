@@ -21,10 +21,13 @@ import { SECRET_KEYS_MAP, SUPPORTED_TOOLS_MAP } from '../../config.js';
 
 const DEBUG_MODE = process.env['DEBUG_MODE'] === 'true'; // when true, log extra errors for debugging
 
-export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, dir, isCompact, verbosity) {
+// when isExport is true (export-toolchain), classic pipelines are skipped, secrets keep the value imported
+// into state, and a placeholder is only added for required secrets that have no value (and reported in nonSecretRefs)
+export async function importTerraform(token, apiKey, region, toolchainId, toolchainName, dir, isCompact, verbosity, isExport = false) {
     // STEP 1/2: set up terraform file with import blocks
     const importBlocks = []; // an array of objects representing import blocks, used in importBlocksToTf
     const additionalProps = {}; // maps resource name to array of { property/param, value }, used to override terraform import
+    const rawPropValues = {}; // maps pipeline/trigger property resource name to its value as stored in the API
 
     const toolIdMap = {}; // maps tool ids to { type, name }, used to add references
 
@@ -37,6 +40,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     ];
 
     const nonSecretRefs = [];
+    const secretsToCheck = {}; // maps resource name to array of { tfKey, fileName }, only used when isExport is true
 
     let block = importBlock(toolchainId, toolchainName, 'ibm_cd_toolchain');
     importBlocks.push(block);
@@ -57,7 +61,10 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     for (const tool of allTools.tools) {
         const toolName = tool.parameters?.name ?? tool.tool_type_id;
 
-        if (tool.tool_type_id in SUPPORTED_TOOLS_MAP) {
+        // export-toolchain does not support classic pipelines, skip them
+        const skipClassicPipeline = isExport && tool.tool_type_id === 'pipeline' && tool.parameters?.type === 'classic';
+
+        if (tool.tool_type_id in SUPPORTED_TOOLS_MAP && !skipClassicPipeline) {
             block = importBlock(`${toolchainId}/${tool.id}`, toolName, SUPPORTED_TOOLS_MAP[tool.tool_type_id]);
             importBlocks.push(block);
 
@@ -84,7 +91,14 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                         additionalProps[block.name].push({ param: tfKey, value: tool.parameters[key] });
                     } else {
                         const newFileName = SUPPORTED_TOOLS_MAP[tool.tool_type_id].split('ibm_')[1];
-                        if (required || prereq) {
+                        if (isExport) {
+                            if (required) {
+                                secretsToCheck[block.name] = [
+                                    ...(secretsToCheck[block.name] ?? []),
+                                    { tfKey: tfKey, fileName: isCompact ? 'resources.tf' : `${newFileName}.tf` }
+                                ];
+                            }
+                        } else if (required || prereq) {
                             nonSecretRefs.push({
                                 resource_name: block.name,
                                 property_name: tfKey,
@@ -122,6 +136,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
             pipelineData.properties?.forEach((prop) => {
                 block = importBlock(`${pipelineData.id}/${prop.name}`, prop.name, 'ibm_cd_tekton_pipeline_property');
                 importBlocks.push(block);
+                if (prop.type !== 'secure' && typeof prop.value === 'string') rawPropValues[block.name] = prop.value;
 
                 // overwrite hard-coded id with reference
                 additionalProps[block.name] = [
@@ -143,6 +158,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 trig.properties?.forEach((trigProp) => {
                     block = importBlock(`${pipelineData.id}/${trig.id}/${trigProp.name}`, trigProp.name, 'ibm_cd_tekton_pipeline_trigger_property');
                     importBlocks.push(block);
+                    if (trigProp.type !== 'secure' && typeof trigProp.value === 'string') rawPropValues[block.name] = trigProp.value;
 
                     // overwrite hard-coded id with reference
                     additionalProps[block.name] = [
@@ -243,6 +259,17 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                 })
             }
 
+            // add placeholders for required secrets that have no imported value
+            if (k in secretsToCheck) {
+                secretsToCheck[k].forEach(({ tfKey, fileName }) => {
+                    const currentValue = newTfFileObj['resource'][key][k]['parameters'][0][tfKey];
+                    if (currentValue === undefined || currentValue === null || currentValue === '') {
+                        newTfFileObj['resource'][key][k]['parameters'][0][tfKey] = `<${tfKey}>`;
+                        nonSecretRefs.push({ resource_name: k, property_name: tfKey, file_name: fileName });
+                    }
+                });
+            }
+
             // add relevent references and depends_on
             if (key === 'ibm_cd_tekton_pipeline' && newTfFileObj['resource'][key][k]['worker']) {
                 const workerId = newTfFileObj['resource'][key][k]['worker'][0]['id'];
@@ -262,7 +289,9 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
                     const END_INDICATOR = ')}';
 
                     if (propValue.startsWith(START_INDICATOR) && propValue.endsWith(END_INDICATOR)) {
-                        // skip substitution for jsonencode case, don't want to mangle it
+                        // the generated jsonencode() would reformat the stored value and show as a
+                        // diff in terraform plan, so use the value as stored in the API when available
+                        if (isExport && k in rawPropValues) newValue = escapeReservedChars(rawPropValues[k]).replaceAll('${', '$${').replaceAll('%{', '%%{');
                     } else {
                         newValue = escapeReservedChars(propValue);
                     }
@@ -361,7 +390,7 @@ export async function importTerraform(token, apiKey, region, toolchainId, toolch
     // remove draft
     if (fs.existsSync(`${dir}/generated/draft.tf`)) fs.rmSync(`${dir}/generated/draft.tf`, { recursive: true });
 
-    return [toolchainResName, nonSecretRefs, s2sAuthTools];
+    return [toolchainResName, nonSecretRefs, s2sAuthTools, importBlocks];
 }
 
 // objects have two keys, "id" and "to"

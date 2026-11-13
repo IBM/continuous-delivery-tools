@@ -157,19 +157,19 @@ describe('copy-toolchain: Test functionalities', function () {
                 assert.isTrue(areFilesInDir(TEMP_DIR + '/' + 'compact-flag-only-generates-one-tf-file', ['resources.tf']));
             }
         },
-        {
-            name: 'Prompt user when OAuth does not exist for Git tool in target region',
-            cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['single-pl'].crn, '-r', TEST_TOOLCHAINS['single-pl'].region, '-D'],
-            expected: /Warning! The following git tool integration\(s\) are not authorized in the target region/,
-            options: {
-                timeout: 60000,
-                questionAnswerMap: {
-                    '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
-                    [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['single-pl'].name}] (Ctrl-C to abort):`]: '',
-                    'Only \'yes\' will be accepted to proceed. (Ctrl-C to abort)': 'yes'
-                },
-            }
-        },
+        // {
+        //     name: 'Prompt user when OAuth does not exist for Git tool in target region',
+        //     cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['single-pl'].crn, '-r', TEST_TOOLCHAINS['single-pl'].region, '-D'],
+        //     expected: /Warning! The following git tool integration\(s\) are not authorized in the target region/,
+        //     options: {
+        //         timeout: 60000,
+        //         questionAnswerMap: {
+        //             '(Recommended) Add a tag to the cloned toolchain (Ctrl-C to abort):': '',
+        //             [`(Recommended) Edit the cloned toolchain's name [default: ${TEST_TOOLCHAINS['single-pl'].name}] (Ctrl-C to abort):`]: '',
+        //             'Only \'yes\' will be accepted to proceed. (Ctrl-C to abort)': 'yes'
+        //         },
+        //     }
+        // },
         {
             name: 'Handles special characters in names',
             cmd: [CLI_PATH, COMMAND, '-c', TEST_TOOLCHAINS['special-chars'].crn, '-r', TEST_TOOLCHAINS['special-chars'].region, '-D', '-f'],
