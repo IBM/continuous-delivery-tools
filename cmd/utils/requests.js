@@ -306,7 +306,8 @@ async function getGitOAuth(bearer, targetRegion, gitId) {
         params: { env_id: `ibm:yp:${targetRegion}`, git_id: gitId, console_url: `https://${CLOUD_PLATFORM}`, return_uri: `https://${CLOUD_PLATFORM}/devops/git/static/github_return.html` },
         validateStatus: () => true
     };
-    const response = await axios(options);
+    const mockScenario = process.env.MOCK_ALL_REQUESTS === 'true' && process.env.MOCK_GET_GIT_OAUTH_SCENARIO;
+    const response = mockScenario ? mocks.getGitOAuthResponses[mockScenario] : await axios(options);
     switch (response.status) {
         case 200:
             return response.data?.access_token;
