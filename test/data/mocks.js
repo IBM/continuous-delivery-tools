@@ -36,6 +36,15 @@ const getCdInstanceByRegionResponses = {
     }
 };
 
+const getGitOAuthResponses = {
+    'UNAUTHORIZED': {
+        status: 401,
+        data: {
+            authorizationURI: 'https://cloud.ibm.com/devops/git/mock-authorization'
+        }
+    }
+};
+
 export default {
     invalidCrn,
     invalidRegion,
@@ -45,5 +54,6 @@ export default {
     invalidRgName,
     invalidGritMapping,
     invalidGritFileName,
-    getCdInstanceByRegionResponses
+    getCdInstanceByRegionResponses,
+    getGitOAuthResponses
 };
